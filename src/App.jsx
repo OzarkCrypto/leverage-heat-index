@@ -1,4 +1,21 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+
+function useContainerWidth() {
+  var ref = useRef(null);
+  var _w = useState(960);
+  var w = _w[0], setW = _w[1];
+  useEffect(function() {
+    if (!ref.current) return;
+    var ro = new ResizeObserver(function(entries) {
+      var cr = entries[0].contentRect;
+      if (cr.width > 0) setW(cr.width);
+    });
+    ro.observe(ref.current);
+    setW(ref.current.offsetWidth || 960);
+    return function() { ro.disconnect(); };
+  }, []);
+  return [ref, w];
+}
 
 var LLAMA_PROTOCOLS = ["aave-v3","compound-v3","compound-v2","morpho-v1","sparklend","venus-core-pool","radiant-v1","fluid-lending"];
 var STABLES = ["usdc","usdt","dai","usds","usdt0","susds","lusd","frax","gho","crvusd"];
@@ -184,12 +201,13 @@ function Gauge({ score, size }) {
 
 // ── Heat Timeline Chart ──
 function HeatTimeline({ heatData, period, setPeriod, t }) {
-  if (!heatData || heatData.length < 10) return null;
   var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
+  var _cw = useContainerWidth(), containerRef = _cw[0], W = _cw[1];
+  if (!heatData || heatData.length < 10) return <div ref={containerRef}></div>;
   var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
   var filtered = period >= 9999 ? heatData : heatData.filter(function(d) { return new Date(d.dt) >= cutoff; });
   if (filtered.length < 5) filtered = heatData;
-  var W = 960, H = 160, pad = { t: 10, r: 14, b: 32, l: 40 };
+  var H = 160, pad = { t: 10, r: 14, b: 32, l: 40 };
   var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
   var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
   var hovInfo = filtered[activeIdx];
@@ -206,8 +224,8 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
   var labels = []; var step = Math.max(1, Math.floor(filtered.length / 10));
   for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>); }
   var yLabels = [-2, -1, 0, 1, 2].map(function(v) { var y = pad.t + cH / 2 - (v / 3) * (cH / 2); return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 8 }}>{v > 0 ? "+" : ""}{v}</text></g>; });
-  var handleMove = function(e) { var svg = e.currentTarget; var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var svgP = pt.matrixTransform(svg.getScreenCTM().inverse()); var idx = Math.floor(((svgP.x - pad.l) / cW) * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
-  return (<div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.floor((mouseX - pad.l) / cW * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  return (<div ref={containerRef} style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
       <span style={{ fontSize: 10, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
       <div style={{ display: "flex", gap: 2 }}>{[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
@@ -218,7 +236,7 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
       <span>Vol: ${fmt(hovInfo.borrow)}</span>
       <span>B/R: {hovInfo.brRatio.toFixed(2)}x</span>
     </div>
-    <svg width="100%" height={H} viewBox={"0 0 " + W + " " + H} preserveAspectRatio="xMidYMid meet" style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
+    <svg width={W} height={H} style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
       {yLabels}{rects}
       <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t + cH} stroke="#999" strokeWidth={0.5} strokeDasharray="2,2" />
       <line x1={pad.l} y1={zeroY} x2={pad.l + cW} y2={zeroY} stroke="#ccc" strokeWidth={0.5} strokeDasharray="3,3" />
@@ -232,13 +250,14 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
 // ── Borrow Volume Chart ──
 var PERIODS = [{label:"30D",days:30},{label:"90D",days:90},{label:"180D",days:180},{label:"1Y",days:365},{label:"2Y",days:730},{label:"ALL",days:9999}];
 function BorrowChart({ data, period, setPeriod, t }) {
-  if (!data || data.length < 3) return null;
   var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
+  var _cw = useContainerWidth(), containerRef = _cw[0], W = _cw[1];
+  if (!data || data.length < 3) return <div ref={containerRef}></div>;
   var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
   var filtered = period >= 9999 ? data : data.filter(function(d) { return new Date(d.dt) >= cutoff; });
   if (filtered.length < 2) filtered = data;
   var maData = []; for (var i = 0; i < filtered.length; i++) { var start = Math.max(0, i - 6), sum = 0, cnt = 0; for (var j = start; j <= i; j++) { sum += filtered[j].borrow; cnt++; } maData.push(sum / cnt); }
-  var W = 960, H = 300, pad = { t: 14, r: 14, b: 34, l: 56 };
+  var H = 300, pad = { t: 14, r: 14, b: 34, l: 56 };
   var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
   var sorted = filtered.map(function(d){return d.borrow;}).sort(function(a,b){return a-b;});
   var p95 = sorted[Math.floor(sorted.length * 0.95)] || sorted[sorted.length - 1];
@@ -256,13 +275,12 @@ function BorrowChart({ data, period, setPeriod, t }) {
   for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; dateLabels.push(<text key={i} x={x} y={H-6} textAnchor="middle" fill="#999" style={{fontSize:9.5}}>{filtered[i].dt.split(" ")[0]}</text>); }
   var yTicks = [0, maxB*0.25, maxB*0.5, maxB*0.75, maxB];
   var yLabels = yTicks.map(function(v, i) { var y = pad.t + cH - (v / maxB) * cH; return <g key={i}><line x1={pad.l} y1={y} x2={pad.l+cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l-4} y={y+3} textAnchor="end" fill="#aaa" style={{fontSize:9}}>${fmt(v,0)}</text></g>; });
-  // Hover logic: x-position based, default to latest
   var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
   var activeData = filtered[activeIdx];
   var activeNet = activeData.borrow - activeData.repay;
   var crossX = pad.l + (activeIdx / (filtered.length - 1)) * cW;
-  var handleMove = function(e) { var svg = e.currentTarget; var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var svgP = pt.matrixTransform(svg.getScreenCTM().inverse()); var idx = Math.round(((svgP.x - pad.l) / cW) * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
-  return (<div>
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.round((mouseX - pad.l) / cW * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  return (<div ref={containerRef}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
       <span style={{fontSize:10,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase"}}>{t.chart_title} &middot; {period>=9999?"ALL":period+"D"}</span>
       <div style={{display:"flex",gap:2}}>{PERIODS.map(function(p){var active=p.days===period;return <button key={p.label} onClick={function(){setPeriod(p.days);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.label}</button>;})}</div>
@@ -274,7 +292,7 @@ function BorrowChart({ data, period, setPeriod, t }) {
       <span>Net: <b style={{color:activeNet>=0?"#0ea371":"#d4522a"}}>${fmt(activeNet)}</b></span>
       <span>B/R: <b>{activeData.repay > 0 ? (activeData.borrow / activeData.repay).toFixed(2) : "\u2014"}x</b></span>
     </div>
-    <svg width="100%" height={H} viewBox={"0 0 "+W+" "+H} preserveAspectRatio="xMidYMid meet" style={{display:"block",cursor:"crosshair"}} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
+    <svg width={W} height={H} style={{display:"block",cursor:"crosshair"}} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
       {yLabels}<path d={maArea} fill="#7c8cf510" />{netBars}<path d={maLine} stroke="#7c8cf5" strokeWidth={1.8} fill="none" />
       <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t+cH} stroke="#999" strokeWidth={0.5} strokeDasharray="2,2" />
       <line x1={pad.l} y1={pad.t+cH} x2={pad.l+cW} y2={pad.t+cH} stroke="#e0e0e4" strokeWidth={0.5} />
