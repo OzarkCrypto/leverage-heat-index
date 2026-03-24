@@ -119,7 +119,7 @@ function BorrowChart({ data, period, setPeriod }) {
     maData.push(sum / cnt);
   }
 
-  var W = 700, H = 180, pad = { t: 14, r: 14, b: 32, l: 56 };
+  var W = 720, H = 300, pad = { t: 14, r: 14, b: 34, l: 56 };
   var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
 
   // Use 95th percentile for y-max to avoid outlier compression
@@ -159,24 +159,24 @@ function BorrowChart({ data, period, setPeriod }) {
 
   // Date labels - show YYYY-MM-DD
   var labels = [];
-  var labelCount = Math.min(6, filtered.length);
+  var labelCount = Math.min(8, filtered.length);
   var step = Math.max(1, Math.floor(filtered.length / labelCount));
   for (var i = 0; i < filtered.length; i += step) {
     var x = pad.l + (i / (filtered.length - 1)) * cW;
     var dateStr = filtered[i].dt.split(" ")[0]; // YYYY-MM-DD
-    labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 8.5 }}>{dateStr}</text>);
+    labels.push(<text key={i} x={x} y={H - 6} textAnchor="middle" fill="#999" style={{ fontSize: 9.5 }}>{dateStr}</text>);
   }
 
   var yTicks = [0, maxB * 0.25, maxB * 0.5, maxB * 0.75, maxB];
   var yLabels = yTicks.map(function(v, i) {
     var y = pad.t + cH - (v / maxB) * cH;
-    return <g key={i}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 8 }}>${fmt(v, 0)}</text></g>;
+    return <g key={i}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#aaa" style={{ fontSize: 9 }}>${fmt(v, 0)}</text></g>;
   });
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>Stablecoin Borrow Volume</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>Stablecoin Borrow Volume &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
         <div style={{ display: "flex", gap: 2 }}>
           {PERIODS.map(function(p) {
             var active = p.days === period;
