@@ -185,64 +185,47 @@ function Gauge({ score, size }) {
 // ── Heat Timeline Chart ──
 function HeatTimeline({ heatData, period, setPeriod, t }) {
   if (!heatData || heatData.length < 10) return null;
-  var _hov = useState(null), hov = _hov[0], setHov = _hov[1];
+  var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
   var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
   var filtered = period >= 9999 ? heatData : heatData.filter(function(d) { return new Date(d.dt) >= cutoff; });
   if (filtered.length < 5) filtered = heatData;
   var W = 960, H = 160, pad = { t: 10, r: 14, b: 32, l: 40 };
   var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
-  var rects = []; var hovInfo = null;
+  var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
+  var hovInfo = filtered[activeIdx];
   var barW = Math.max(1, cW / filtered.length);
+  var rects = [];
   for (var i = 0; i < filtered.length; i++) {
     var x = pad.l + (i / filtered.length) * cW;
-    var s = filtered[i].score;
-    var baseY = pad.t + cH / 2;
-    var h = (Math.abs(s) / 3) * (cH / 2);
-    var y = s >= 0 ? baseY - h : baseY;
-    rects.push(<rect key={i} x={x} y={y} width={barW} height={h || 0.5} fill={sColor(s)} opacity={hov === i ? 1 : 0.6}
-      onMouseEnter={function(idx) { return function() { setHov(idx); }; }(i)}
-      onMouseLeave={function() { setHov(null); }}
-    />);
-    if (hov === i) hovInfo = filtered[i];
+    var s = filtered[i].score; var baseY = pad.t + cH / 2;
+    var h = (Math.abs(s) / 3) * (cH / 2); var y = s >= 0 ? baseY - h : baseY;
+    rects.push(<rect key={i} x={x} y={y} width={barW} height={h || 0.5} fill={sColor(s)} opacity={activeIdx === i ? 1 : 0.5} />);
   }
-  // Zero line
+  var crossX = pad.l + (activeIdx / filtered.length) * cW + barW / 2;
   var zeroY = pad.t + cH / 2;
-  // Date labels
   var labels = []; var step = Math.max(1, Math.floor(filtered.length / 10));
-  for (var i = 0; i < filtered.length; i += step) {
-    var x = pad.l + (i / filtered.length) * cW;
-    labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>);
-  }
-  // Y labels
-  var yLabels = [-2, -1, 0, 1, 2].map(function(v) {
-    var y = pad.t + cH / 2 - (v / 3) * (cH / 2);
-    return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 8 }}>{v > 0 ? "+" : ""}{v}</text></g>;
-  });
-
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>); }
+  var yLabels = [-2, -1, 0, 1, 2].map(function(v) { var y = pad.t + cH / 2 - (v / 3) * (cH / 2); return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 8 }}>{v > 0 ? "+" : ""}{v}</text></g>; });
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = (e.clientX - rect.left) / rect.width * W; var idx = Math.round(((mouseX - pad.l) / cW) * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
   return (<div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
       <span style={{ fontSize: 10, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
-      <div style={{ display: "flex", gap: 2 }}>
-        {[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) {
-          var active = p.d === period;
-          return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>;
-        })}
-      </div>
+      <div style={{ display: "flex", gap: 2 }}>{[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
     </div>
-    {hovInfo && (<div style={{ fontSize: 10, marginBottom: 4, padding: "4px 8px", background: sColor(hovInfo.score) + "10", borderRadius: 4, display: "inline-flex", gap: 12 }}>
+    <div style={{ fontSize: 10, marginBottom: 4, padding: "4px 8px", background: sColor(hovInfo.score) + "10", borderRadius: 4, display: "inline-flex", gap: 12, minHeight: 22 }}>
       <b>{hovInfo.dt.split(" ")[0]}</b>
       <span style={{ color: sColor(hovInfo.score), fontWeight: 700 }}>{hovInfo.score > 0 ? "+" : ""}{hovInfo.score.toFixed(2)} {sLabel(hovInfo.score)}</span>
       <span>Vol: ${fmt(hovInfo.borrow)}</span>
       <span>B/R: {hovInfo.brRatio.toFixed(2)}x</span>
-    </div>)}
-    <svg width="100%" height={H} viewBox={"0 0 " + W + " " + H} preserveAspectRatio="xMidYMid meet" style={{ display: "block", cursor: "crosshair" }}>
+    </div>
+    <svg width="100%" height={H} viewBox={"0 0 " + W + " " + H} preserveAspectRatio="xMidYMid meet" style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
       {yLabels}{rects}
+      <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t + cH} stroke="#999" strokeWidth={0.5} strokeDasharray="2,2" />
       <line x1={pad.l} y1={zeroY} x2={pad.l + cW} y2={zeroY} stroke="#ccc" strokeWidth={0.5} strokeDasharray="3,3" />
       {labels}
+      <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
     </svg>
-    <div style={{ fontSize: 9, color: "#bbb", marginTop: 4 }}>
-      {t.heat_desc}
-    </div>
+    <div style={{ fontSize: 9, color: "#bbb", marginTop: 4 }}>{t.heat_desc}</div>
   </div>);
 }
 
@@ -250,6 +233,7 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
 var PERIODS = [{label:"30D",days:30},{label:"90D",days:90},{label:"180D",days:180},{label:"1Y",days:365},{label:"2Y",days:730},{label:"ALL",days:9999}];
 function BorrowChart({ data, period, setPeriod, t }) {
   if (!data || data.length < 3) return null;
+  var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
   var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
   var filtered = period >= 9999 ? data : data.filter(function(d) { return new Date(d.dt) >= cutoff; });
   if (filtered.length < 2) filtered = data;
@@ -268,16 +252,35 @@ function BorrowChart({ data, period, setPeriod, t }) {
   var maLine = "M " + maPts.join(" L ");
   var barW = Math.max(1.5, cW / filtered.length * 0.7);
   var netBars = netPts.map(function(p, i) { var baseY = pad.t + cH / 2; var h = Math.abs(baseY - p.y); return <rect key={i} x={p.x - barW/2} y={p.val >= 0 ? p.y : baseY} width={barW} height={h || 0.5} fill={p.val >= 0 ? "#0ea37150" : "#d4522a50"} />; });
-  var labels = [], step = Math.max(1, Math.floor(filtered.length / 12));
-  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; labels.push(<text key={i} x={x} y={H-6} textAnchor="middle" fill="#999" style={{fontSize:9.5}}>{filtered[i].dt.split(" ")[0]}</text>); }
+  var dateLabels = [], step = Math.max(1, Math.floor(filtered.length / 12));
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; dateLabels.push(<text key={i} x={x} y={H-6} textAnchor="middle" fill="#999" style={{fontSize:9.5}}>{filtered[i].dt.split(" ")[0]}</text>); }
   var yTicks = [0, maxB*0.25, maxB*0.5, maxB*0.75, maxB];
   var yLabels = yTicks.map(function(v, i) { var y = pad.t + cH - (v / maxB) * cH; return <g key={i}><line x1={pad.l} y1={y} x2={pad.l+cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l-4} y={y+3} textAnchor="end" fill="#aaa" style={{fontSize:9}}>${fmt(v,0)}</text></g>; });
+  // Hover logic: x-position based, default to latest
+  var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
+  var activeData = filtered[activeIdx];
+  var activeNet = activeData.borrow - activeData.repay;
+  var crossX = pad.l + (activeIdx / (filtered.length - 1)) * cW;
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = (e.clientX - rect.left) / rect.width * W; var idx = Math.round(((mouseX - pad.l) / cW) * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
   return (<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
       <span style={{fontSize:10,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase"}}>{t.chart_title} &middot; {period>=9999?"ALL":period+"D"}</span>
       <div style={{display:"flex",gap:2}}>{PERIODS.map(function(p){var active=p.days===period;return <button key={p.label} onClick={function(){setPeriod(p.days);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.label}</button>;})}</div>
     </div>
-    <svg width="100%" height={H} viewBox={"0 0 "+W+" "+H} preserveAspectRatio="xMidYMid meet" style={{display:"block"}}>{yLabels}<path d={maArea} fill="#7c8cf510" />{netBars}<path d={maLine} stroke="#7c8cf5" strokeWidth={1.8} fill="none" /><line x1={pad.l} y1={pad.t+cH} x2={pad.l+cW} y2={pad.t+cH} stroke="#e0e0e4" strokeWidth={0.5} />{labels}</svg>
+    <div style={{fontSize:10,marginBottom:4,padding:"4px 8px",background:"#f8f8fa",borderRadius:4,display:"inline-flex",gap:12,minHeight:22}}>
+      <b>{activeData.dt.split(" ")[0]}</b>
+      <span>Vol: <b>${fmt(activeData.borrow)}</b></span>
+      <span>Repay: <b>${fmt(activeData.repay)}</b></span>
+      <span>Net: <b style={{color:activeNet>=0?"#0ea371":"#d4522a"}}>${fmt(activeNet)}</b></span>
+      <span>B/R: <b>{activeData.repay > 0 ? (activeData.borrow / activeData.repay).toFixed(2) : "\u2014"}x</b></span>
+    </div>
+    <svg width="100%" height={H} viewBox={"0 0 "+W+" "+H} preserveAspectRatio="xMidYMid meet" style={{display:"block",cursor:"crosshair"}} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
+      {yLabels}<path d={maArea} fill="#7c8cf510" />{netBars}<path d={maLine} stroke="#7c8cf5" strokeWidth={1.8} fill="none" />
+      <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t+cH} stroke="#999" strokeWidth={0.5} strokeDasharray="2,2" />
+      <line x1={pad.l} y1={pad.t+cH} x2={pad.l+cW} y2={pad.t+cH} stroke="#e0e0e4" strokeWidth={0.5} />
+      {dateLabels}
+      <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
+    </svg>
     <div style={{display:"flex",gap:14,marginTop:4,fontSize:9,color:"#999",flexWrap:"wrap"}}>
       <span><span style={{display:"inline-block",width:12,height:2,background:"#7c8cf5",borderRadius:1,marginRight:3}}></span>{t.borrow_vol}</span>
       <span><span style={{display:"inline-block",width:8,height:8,background:"#0ea37150",borderRadius:1,marginRight:3}}></span>{t.net_inflow}</span>
