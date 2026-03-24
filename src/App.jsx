@@ -401,7 +401,7 @@ export default function App() {
                 )}
                 {/* Layer bars inline */}
                 <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, color: "#888" }}>
-                  {[["L1 Cost", m.l1], ["L2 Cap", m.l2], ["L3 Stress", m.l3]].map(function(item) {
+                  {[["Cost", m.l1], ["Capacity", m.l2], ["Risk", m.l3]].map(function(item) {
                     return <span key={item[0]}>{item[0]}: <b style={{ color: sColor(item[1]) }}>{item[1] > 0 ? "+" : ""}{item[1].toFixed(2)}</b></span>;
                   })}
                 </div>
@@ -426,19 +426,19 @@ export default function App() {
 
           {/* ── 3 LAYERS ── */}
           <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-            <Layer title="L1 &middot; Borrow Cost" wt={40} score={m.l1}>
+            <Layer title="Borrow Cost" wt={40} score={m.l1}>
               <Row label="Wtd Borrow Rate" val={pct(m.wBR)} score={m.brS} sub="Aave/Compound/Morpho/Spark" />
               <Row label="BTC Funding (ann)" val={m.btcFA != null ? pct(m.btcFA) : "\u2014"} score={null} sub="Hyperliquid" />
               <Row label="ETH Funding (ann)" val={m.ethFA != null ? pct(m.ethFA) : "\u2014"} score={null} />
               <Row label="Avg Funding" val={pct(m.fAvg)} score={m.fS} />
             </Layer>
-            <Layer title="L2 &middot; Util &amp; Cap" wt={35} score={m.l2}>
+            <Layer title="Utilization &amp; Capacity" wt={35} score={m.l2}>
               <Row label="Wtd Utilization" val={pct(m.wU)} score={m.uS} />
               <Row label="Total Borrows" val={"$" + fmt(m.tB)} score={m.bAS} sub="absolute size" />
               <Row label="Borrows / BTC Mcap" val={m.bMR != null ? pct(m.bMR, 3) : "\u2014"} score={m.bMS} sub={btcMcap ? "mcap $" + fmt(btcMcap) : ""} />
               {duneMetrics && <Row label="7d Vol Momentum" val={(duneMetrics.volChange > 0 ? "+" : "") + duneMetrics.volChange.toFixed(1) + "%"} score={m.volMomS} sub="Dune: borrow vol WoW" />}
             </Layer>
-            <Layer title="L3 &middot; OI &amp; Stress" wt={25} score={m.l3}>
+            <Layer title="OI &amp; Risk" wt={25} score={m.l3}>
               <Row label="HL Total OI" val={"$" + fmt(m.tOI)} score={m.oiS} sub="notional all pairs" />
               <Row label="BTC+ETH OI %" val={pct(m.conc, 1)} score={m.cS} sub="low = alt frenzy" />
               <Row label="BTC-ETH Fund. Div" val={pct(m.fDiv, 1)} score={m.dS} />
@@ -480,7 +480,7 @@ export default function App() {
           </div>
 
           <div style={{ marginTop: 12, fontSize: 8.5, color: "#bbb", lineHeight: 1.6 }}>
-            L1(40%): TVL weighted borrow rate + perp funding | L2(35%): util + borrows + borrows/BTC mcap + Dune vol momentum | L3(25%): HL OI + concentration + funding divergence + Dune net flow | Auto-refresh daily 06:00 UTC via Vercel cron
+            Cost(40%): TVL weighted borrow rate + perp funding | Capacity(35%): util + borrows + borrows/BTC mcap + Dune vol momentum | Risk(25%): HL OI + concentration + funding divergence + Dune net flow | Auto-refresh daily 06:00 UTC via Vercel cron
           </div>
         </>
       )}
