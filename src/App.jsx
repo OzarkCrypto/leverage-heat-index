@@ -131,6 +131,8 @@ function Layer({ title, wt, score, children }) {
 
 export default function App() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [apiStatus, setApiStatus] = useState({});
   const [pools, setPools] = useState([]);
   const [btcMcap, setBtcMcap] = useState(null);
   const [hlData, setHlData] = useState(null);
@@ -139,40 +141,75 @@ export default function App() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    const status = {};
+
     try {
       const [pR, bR, hR] = await Promise.allSettled([
-        fetch("https://yields.llama.fi/pools").then(r => r.json()),
-        fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_market_cap=true").then(r => r.json()),
+        fetch("https://yields.llama.fi/pools").then(r => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }),
+        fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_market_cap=true").then(r => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }),
         fetch("https://api.hyperliquid.xyz/info", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "metaAndAssetCtxs" })
-        }).then(r => r.json()),
+        }).then(r => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }),
       ]);
 
       if (pR.status === "fulfilled") {
+        status.llama = "ok";
         const d = pR.value?.data || [];
         setPools(d.filter(p =>
           PROTOCOLS.some(pr => p.project?.toLowerCase() === pr) &&
           STABLES.some(s => p.symbol?.toLowerCase().includes(s)) &&
-          p.totalBorrowUsd > 1_000_000
+          p.totalBorrowUsd > 1000000
         ).map(p => ({
           ...p,
           utilization: p.totalSupplyUsd > 0 ? (p.totalBorrowUsd / p.totalSupplyUsd) * 100 : 0,
           apyBorrow: p.apyBorrow || 0,
         })).sort((a, b) => b.totalBorrowUsd - a.totalBorrowUsd));
+      } else {
+        status.llama = String(pR.reason?.message || "failed");
       }
-      if (bR.status === "fulfilled" && bR.value?.bitcoin) setBtcMcap(bR.value.bitcoin.usd_market_cap);
+
+      if (bR.status === "fulfilled" && bR.value?.bitcoin) {
+        status.coingecko = "ok";
+        setBtcMcap(bR.value.bitcoin.usd_market_cap);
+      } else {
+        status.coingecko = bR.status === "rejected" ? String(bR.reason?.message || "failed") : "no data";
+      }
+
       if (hR.status === "fulfilled" && Array.isArray(hR.value)) {
-        const [meta, ctx] = hR.value;
-        setHlData((meta?.universe || []).map((u, i) => ({
+        status.hyperliquid = "ok";
+        const arr = hR.value;
+        const meta = arr[0];
+        const ctx = arr[1];
+        const universe = meta?.universe || [];
+        setHlData(universe.map((u, i) => ({
           name: u.name,
           funding: parseFloat(ctx[i]?.funding || 0),
           openInterest: parseFloat(ctx[i]?.openInterest || 0),
           markPx: parseFloat(ctx[i]?.markPx || 0),
         })));
+      } else {
+        status.hyperliquid = hR.status === "rejected" ? String(hR.reason?.message || "failed") : "no data";
       }
+
+      setApiStatus(status);
       setTs(new Date());
-    } finally { setLoading(false); }
+    } catch (e) {
+      setError(String(e.message || e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -232,16 +269,52 @@ export default function App() {
             background: "#fff", border: "1px solid #ddd", borderRadius: 4, padding: "3px 10px",
             fontSize: 10, fontFamily: f, cursor: loading ? "wait" : "pointer", color: "#666",
           }}>
-            {loading ? "\u00b7\u00b7\u00b7" : "\u21bb"}
+            {loading ? "..." : "\u21bb"}
           </button>
         </div>
       </div>
 
-      {loading && !m ? (
-        <div style={{ textAlign: "center", padding: 40, color: "#bbb" }}>Loading\u2026</div>
-      ) : m && (
+      {/* API Status indicators */}
+      {!loading && Object.keys(apiStatus).length > 0 && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 10, fontSize: 9 }}>
+          {[["DeFiLlama", apiStatus.llama], ["CoinGecko", apiStatus.coingecko], ["Hyperliquid", apiStatus.hyperliquid]].map(function(item) {
+            var name = item[0];
+            var st = item[1];
+            return (
+              <span key={name} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                <span style={{
+                  width: 5, height: 5, borderRadius: "50%",
+                  background: st === "ok" ? "#0ea371" : st ? "#d4522a" : "#ccc",
+                  display: "inline-block",
+                }} />
+                <span style={{ color: st === "ok" ? "#888" : "#d4522a" }}>{name}</span>
+                {st && st !== "ok" && <span style={{ color: "#d4522a", fontSize: 8 }}>({st})</span>}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {error && (
+        <div style={{ background: "#fff5f5", border: "1px solid #fdd", borderRadius: 6, padding: 10, marginBottom: 12, fontSize: 11, color: "#c44" }}>
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 60, color: "#bbb", fontSize: 11 }}>
+          Fetching data...
+        </div>
+      ) : !m ? (
+        <div style={{ textAlign: "center", padding: 40, color: "#999", fontSize: 11 }}>
+          <div style={{ marginBottom: 8 }}>No lending pool data loaded.</div>
+          <div style={{ color: "#bbb", fontSize: 10, lineHeight: 1.6 }}>
+            DeFiLlama API may be temporarily unavailable or rate-limited.<br />
+            Click \u21bb to retry.
+          </div>
+        </div>
+      ) : (
         <>
-          {/* Composite */}
           <div style={{
             background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8,
             padding: "12px 16px 4px", marginBottom: 12,
@@ -250,68 +323,67 @@ export default function App() {
             <Gauge score={m.comp} size={150} />
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontSize: 10, color: "#aaa", marginBottom: 6, letterSpacing: 1, fontWeight: 600 }}>LAYER BREAKDOWN</div>
-              {[
-                ["L1 Borrow Cost", 40, m.l1],
-                ["L2 Util / Capacity", 35, m.l2],
-                ["L3 OI / Stress", 25, m.l3],
-              ].map(([n, w, s]) => (
-                <div key={n} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, color: "#888", width: 130 }}>{n} <span style={{ color: "#ccc" }}>({w}%)</span></span>
-                  <div style={{ flex: 1, height: 4, background: "#f0f0f2", borderRadius: 2, position: "relative", maxWidth: 120 }}>
-                    <div style={{
-                      position: "absolute",
-                      ...(s < 0
-                        ? { right: "50%", width: `${(Math.abs(s) / 3) * 50}%`, borderRadius: "2px 0 0 2px" }
-                        : { left: "50%", width: `${(Math.abs(s) / 3) * 50}%`, borderRadius: "0 2px 2px 0" }
-                      ),
-                      height: "100%", background: sColor(s),
-                    }} />
-                    <div style={{ position: "absolute", left: "50%", top: -1, width: 1, height: 6, background: "#ddd" }} />
+              {[["L1 Borrow Cost", 40, m.l1], ["L2 Util / Capacity", 35, m.l2], ["L3 OI / Stress", 25, m.l3]].map(function(item) {
+                var n = item[0], w = item[1], s = item[2];
+                return (
+                  <div key={n} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, color: "#888", width: 130 }}>{n} <span style={{ color: "#ccc" }}>({w}%)</span></span>
+                    <div style={{ flex: 1, height: 4, background: "#f0f0f2", borderRadius: 2, position: "relative", maxWidth: 120 }}>
+                      <div style={{
+                        position: "absolute",
+                        right: s < 0 ? "50%" : undefined,
+                        left: s >= 0 ? "50%" : undefined,
+                        width: (Math.abs(s) / 3) * 50 + "%",
+                        borderRadius: s < 0 ? "2px 0 0 2px" : "0 2px 2px 0",
+                        height: "100%", background: sColor(s),
+                      }} />
+                      <div style={{ position: "absolute", left: "50%", top: -1, width: 1, height: 6, background: "#ddd" }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: sColor(s), minWidth: 36, textAlign: "right" }}>
+                      {s > 0 ? "+" : ""}{s.toFixed(2)}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: sColor(s), minWidth: 36, textAlign: "right" }}>
-                    {s > 0 ? "+" : ""}{s.toFixed(2)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* 3 Layers */}
           <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-            <Layer title="L1 \u00b7 Borrow Cost" wt={40} score={m.l1}>
+            <Layer title="L1 &middot; Borrow Cost" wt={40} score={m.l1}>
               <Row label="Wtd Borrow Rate" val={pct(m.wBR)} score={m.brS} sub="Aave/Compound/Morpho/Spark" />
               <Row label="BTC Funding (ann)" val={m.btcFA != null ? pct(m.btcFA) : "\u2014"} score={null} sub="Hyperliquid" />
               <Row label="ETH Funding (ann)" val={m.ethFA != null ? pct(m.ethFA) : "\u2014"} score={null} />
               <Row label="Avg Funding" val={pct(m.fAvg)} score={m.fS} />
             </Layer>
 
-            <Layer title="L2 \u00b7 Util & Cap" wt={35} score={m.l2}>
+            <Layer title="L2 &middot; Util &amp; Cap" wt={35} score={m.l2}>
               <Row label="Wtd Utilization" val={pct(m.wU)} score={m.uS} />
               <Row label="Total Borrows" val={"$" + fmt(m.tB)} score={m.bAS} sub="absolute size" />
-              <Row label="Borrows / BTC Mcap" val={m.bMR != null ? pct(m.bMR, 3) : "\u2014"} score={m.bMS} sub={btcMcap ? `mcap $${fmt(btcMcap)}` : ""} />
+              <Row label="Borrows / BTC Mcap" val={m.bMR != null ? pct(m.bMR, 3) : "\u2014"} score={m.bMS} sub={btcMcap ? "mcap $" + fmt(btcMcap) : ""} />
             </Layer>
 
-            <Layer title="L3 \u00b7 OI & Stress" wt={25} score={m.l3}>
+            <Layer title="L3 &middot; OI &amp; Stress" wt={25} score={m.l3}>
               <Row label="HL Total OI" val={"$" + fmt(m.tOI)} score={m.oiS} sub="notional all pairs" />
               <Row label="BTC+ETH OI %" val={pct(m.conc, 1)} score={m.cS} sub="low = alt frenzy" />
               <Row label="BTC-ETH Fund. Div" val={pct(m.fDiv, 1)} score={m.dS} />
             </Layer>
           </div>
 
-          {/* Scale */}
           <div style={{ display: "flex", gap: 2, marginBottom: 10, alignItems: "center", fontSize: 9, color: "#aaa", flexWrap: "wrap" }}>
-            {[[-3, "FROZEN"], [-2, "COLD"], [-1, "COOL"], [0, "NEUT"], [1, "WARM"], [2, "HOT"], [3, "EXTR"]].map(([v, l]) => (
-              <span key={v} style={{ display: "flex", alignItems: "center", gap: 2, marginRight: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: 1, background: sColor(v), display: "inline-block" }} />
-                <span style={{ color: sColor(v), fontWeight: 600 }}>{v > 0 ? "+" : ""}{v}</span>
-                <span>{l}</span>
-              </span>
-            ))}
+            {[[-3, "FROZEN"], [-2, "COLD"], [-1, "COOL"], [0, "NEUT"], [1, "WARM"], [2, "HOT"], [3, "EXTR"]].map(function(item) {
+              var v = item[0], l = item[1];
+              return (
+                <span key={v} style={{ display: "flex", alignItems: "center", gap: 2, marginRight: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 1, background: sColor(v), display: "inline-block" }} />
+                  <span style={{ color: sColor(v), fontWeight: 600 }}>{v > 0 ? "+" : ""}{v}</span>
+                  <span>{l}</span>
+                </span>
+              );
+            })}
           </div>
 
-          {/* Raw Pool Data */}
           <div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 6, overflow: "hidden" }}>
-            <div onClick={() => setShowRaw(!showRaw)} style={{
+            <div onClick={function() { setShowRaw(!showRaw); }} style={{
               padding: "8px 12px", cursor: "pointer", display: "flex",
               justifyContent: "space-between", fontSize: 10, color: "#999", userSelect: "none",
             }}>
@@ -323,23 +395,25 @@ export default function App() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
                   <thead>
                     <tr style={{ color: "#aaa", borderBottom: "1px solid #eee", textAlign: "left" }}>
-                      {["Protocol", "Asset", "Chain", "Borrow%", "Util%", "Borrows", "TVL"].map(h => (
-                        <th key={h} style={{ padding: "5px 8px", fontWeight: 500 }}>{h}</th>
-                      ))}
+                      {["Protocol", "Asset", "Chain", "Borrow%", "Util%", "Borrows", "TVL"].map(function(h) {
+                        return <th key={h} style={{ padding: "5px 8px", fontWeight: 500 }}>{h}</th>;
+                      })}
                     </tr>
                   </thead>
                   <tbody>
-                    {pools.slice(0, 30).map((p, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid #f5f5f7", color: "#555" }}>
-                        <td style={{ padding: "4px 8px" }}>{p.project}</td>
-                        <td style={{ padding: "4px 8px" }}>{p.symbol?.split("-")?.[0] || p.symbol}</td>
-                        <td style={{ padding: "4px 8px", color: "#aaa" }}>{p.chain}</td>
-                        <td style={{ padding: "4px 8px", color: p.apyBorrow > 15 ? "#d4522a" : "#555" }}>{pct(p.apyBorrow)}</td>
-                        <td style={{ padding: "4px 8px", color: p.utilization > 85 ? "#d4522a" : "#555" }}>{pct(p.utilization)}</td>
-                        <td style={{ padding: "4px 8px" }}>${fmt(p.totalBorrowUsd)}</td>
-                        <td style={{ padding: "4px 8px", color: "#aaa" }}>${fmt(p.tvlUsd)}</td>
-                      </tr>
-                    ))}
+                    {pools.slice(0, 30).map(function(p, i) {
+                      return (
+                        <tr key={i} style={{ borderBottom: "1px solid #f5f5f7", color: "#555" }}>
+                          <td style={{ padding: "4px 8px" }}>{p.project}</td>
+                          <td style={{ padding: "4px 8px" }}>{p.symbol ? p.symbol.split("-")[0] : p.symbol}</td>
+                          <td style={{ padding: "4px 8px", color: "#aaa" }}>{p.chain}</td>
+                          <td style={{ padding: "4px 8px", color: p.apyBorrow > 15 ? "#d4522a" : "#555" }}>{pct(p.apyBorrow)}</td>
+                          <td style={{ padding: "4px 8px", color: p.utilization > 85 ? "#d4522a" : "#555" }}>{pct(p.utilization)}</td>
+                          <td style={{ padding: "4px 8px" }}>{"$" + fmt(p.totalBorrowUsd)}</td>
+                          <td style={{ padding: "4px 8px", color: "#aaa" }}>{"$" + fmt(p.tvlUsd)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -347,7 +421,7 @@ export default function App() {
           </div>
 
           <div style={{ marginTop: 12, fontSize: 8.5, color: "#bbb", lineHeight: 1.6 }}>
-            L1(40%): TVL\uAC00\uC911 borrow rate + perp funding ann. \u00b7 L2(35%): \uAC00\uC911 util + \uC808\uB300 \uB300\uCD9C\uADDC\uBAA8 + \uB300\uCD9C/BTC\uC2DC\uCD1D \u00b7 L3(25%): HL OI + BTC+ETH OI \uC9D1\uC911\uB3C4(inv) + BTC-ETH funding \uAD34\uB9AC
+            L1(40%): TVL weighted borrow rate + perp funding ann. | L2(35%): weighted util + absolute borrows + borrows/BTC mcap | L3(25%): HL OI + BTC+ETH OI concentration(inv) + BTC-ETH funding divergence
           </div>
         </>
       )}
