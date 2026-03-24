@@ -206,7 +206,7 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
   var labels = []; var step = Math.max(1, Math.floor(filtered.length / 10));
   for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>); }
   var yLabels = [-2, -1, 0, 1, 2].map(function(v) { var y = pad.t + cH / 2 - (v / 3) * (cH / 2); return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 8 }}>{v > 0 ? "+" : ""}{v}</text></g>; });
-  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = (e.clientX - rect.left) / rect.width * W; var idx = Math.round(((mouseX - pad.l) / cW) * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  var handleMove = function(e) { var svg = e.currentTarget; var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var svgP = pt.matrixTransform(svg.getScreenCTM().inverse()); var idx = Math.floor(((svgP.x - pad.l) / cW) * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
   return (<div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
       <span style={{ fontSize: 10, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
@@ -261,7 +261,7 @@ function BorrowChart({ data, period, setPeriod, t }) {
   var activeData = filtered[activeIdx];
   var activeNet = activeData.borrow - activeData.repay;
   var crossX = pad.l + (activeIdx / (filtered.length - 1)) * cW;
-  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = (e.clientX - rect.left) / rect.width * W; var idx = Math.round(((mouseX - pad.l) / cW) * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  var handleMove = function(e) { var svg = e.currentTarget; var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var svgP = pt.matrixTransform(svg.getScreenCTM().inverse()); var idx = Math.round(((svgP.x - pad.l) / cW) * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
   return (<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
       <span style={{fontSize:10,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase"}}>{t.chart_title} &middot; {period>=9999?"ALL":period+"D"}</span>
