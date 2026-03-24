@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 
-const PROTOCOLS = ["aave-v3", "compound-v3", "morpho-blue", "aave-v2", "spark"];
-const STABLES = ["usdc", "usdt", "dai", "usds"];
+const PROTOCOLS = ["aave-v3", "compound-v3", "compound-v2", "morpho-v1", "sparklend"];
+const STABLES = ["usdc", "usdt", "dai", "usds", "usdt0", "susds"];
 
 function lerp(a, b, t) { return a + (b - a) * Math.min(1, Math.max(0, t)); }
 function scoreLinear(v, cold, neut, hot, ext) {
@@ -31,7 +31,8 @@ function sLabel(s) {
   return "EXTREME";
 }
 
-function fmt(n, d = 1) {
+function fmt(n, d) {
+  if (d === undefined) d = 1;
   if (n == null || isNaN(n)) return "\u2014";
   if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(d) + "B";
   if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(d) + "M";
@@ -39,37 +40,39 @@ function fmt(n, d = 1) {
   return n.toFixed(d);
 }
 
-function pct(n, d = 2) {
+function pct(n, d) {
+  if (d === undefined) d = 2;
   if (n == null || isNaN(n)) return "\u2014";
   return n.toFixed(d) + "%";
 }
 
-function Gauge({ score, size = 150 }) {
-  const r = size * 0.36;
-  const cx = size / 2, cy = size * 0.5;
-  const sA = -210, eA = 30, range = eA - sA;
-  const t = (score + 3) / 6;
-  const nA = sA + range * t;
-  const toR = a => (a * Math.PI) / 180;
+function Gauge({ score, size }) {
+  if (!size) size = 150;
+  var r = size * 0.36;
+  var cx = size / 2, cy = size * 0.5;
+  var sA = -210, eA = 30, range = eA - sA;
+  var t = (score + 3) / 6;
+  var nA = sA + range * t;
+  var toR = function(a) { return (a * Math.PI) / 180; };
 
-  const arc = (a1, a2) => {
-    const s = toR(a1), e = toR(a2);
-    return `M ${cx + r * Math.cos(s)} ${cy + r * Math.sin(s)} A ${r} ${r} 0 ${a2 - a1 > 180 ? 1 : 0} 1 ${cx + r * Math.cos(e)} ${cy + r * Math.sin(e)}`;
+  var arc = function(a1, a2) {
+    var s = toR(a1), e = toR(a2);
+    return "M " + (cx + r * Math.cos(s)) + " " + (cy + r * Math.sin(s)) + " A " + r + " " + r + " 0 " + (a2 - a1 > 180 ? 1 : 0) + " 1 " + (cx + r * Math.cos(e)) + " " + (cy + r * Math.sin(e));
   };
 
-  const steps = 60;
-  const arcPaths = Array.from({ length: steps }, (_, i) => {
-    const f = i / steps;
-    const a1 = sA + range * f;
-    const a2 = sA + range * (f + 1 / steps);
-    const v = -3 + 6 * f;
+  var steps = 60;
+  var arcPaths = Array.from({ length: steps }, function(_, i) {
+    var f = i / steps;
+    var a1 = sA + range * f;
+    var a2 = sA + range * (f + 1 / steps);
+    var v = -3 + 6 * f;
     return <path key={i} d={arc(a1, a2)} stroke={sColor(v)} strokeWidth={5} fill="none" opacity={0.25} />;
   });
 
-  const nd = toR(nA), nl = r * 0.75;
+  var nd = toR(nA), nl = r * 0.75;
 
   return (
-    <svg width={size} height={size * 0.56} viewBox={`0 0 ${size} ${size * 0.56}`}>
+    <svg width={size} height={size * 0.56} viewBox={"0 0 " + size + " " + (size * 0.56)}>
       {arcPaths}
       <line x1={cx} y1={cy} x2={cx + nl * Math.cos(nd)} y2={cy + nl * Math.sin(nd)}
         stroke={sColor(score)} strokeWidth={2} strokeLinecap="round" />
@@ -130,129 +133,173 @@ function Layer({ title, wt, score, children }) {
 }
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [apiStatus, setApiStatus] = useState({});
-  const [pools, setPools] = useState([]);
-  const [btcMcap, setBtcMcap] = useState(null);
-  const [hlData, setHlData] = useState(null);
-  const [ts, setTs] = useState(null);
-  const [showRaw, setShowRaw] = useState(false);
+  var _s = useState(true); var loading = _s[0]; var setLoading = _s[1];
+  var _e = useState(null); var error = _e[0]; var setError = _e[1];
+  var _a = useState({}); var apiStatus = _a[0]; var setApiStatus = _a[1];
+  var _p = useState([]); var pools = _p[0]; var setPools = _p[1];
+  var _b = useState(null); var btcMcap = _b[0]; var setBtcMcap = _b[1];
+  var _h = useState(null); var hlData = _h[0]; var setHlData = _h[1];
+  var _t = useState(null); var ts = _t[0]; var setTs = _t[1];
+  var _r = useState(false); var showRaw = _r[0]; var setShowRaw = _r[1];
 
-  const fetchAll = useCallback(async () => {
+  var fetchAll = useCallback(function() {
     setLoading(true);
     setError(null);
-    const status = {};
+    var status = {};
 
-    try {
-      const [pR, bR, hR] = await Promise.allSettled([
-        fetch("https://yields.llama.fi/pools").then(r => {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.json();
-        }),
-        fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_market_cap=true").then(r => {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.json();
-        }),
-        fetch("https://api.hyperliquid.xyz/info", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "metaAndAssetCtxs" })
-        }).then(r => {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.json();
-        }),
-      ]);
+    Promise.allSettled([
+      fetch("https://yields.llama.fi/poolsBorrow").then(function(r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }),
+      fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_market_cap=true").then(function(r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }),
+      fetch("https://api.hyperliquid.xyz/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "metaAndAssetCtxs" })
+      }).then(function(r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }),
+    ]).then(function(results) {
+      var pR = results[0];
+      var bR = results[1];
+      var hR = results[2];
 
       if (pR.status === "fulfilled") {
         status.llama = "ok";
-        const d = pR.value?.data || [];
-        setPools(d.filter(p =>
-          PROTOCOLS.some(pr => p.project?.toLowerCase() === pr) &&
-          STABLES.some(s => p.symbol?.toLowerCase().includes(s)) &&
-          p.totalBorrowUsd > 1000000
-        ).map(p => ({
-          ...p,
-          utilization: p.totalSupplyUsd > 0 ? (p.totalBorrowUsd / p.totalSupplyUsd) * 100 : 0,
-          apyBorrow: p.apyBorrow || 0,
-        })).sort((a, b) => b.totalBorrowUsd - a.totalBorrowUsd));
+        var d = (pR.value && pR.value.data) ? pR.value.data : [];
+        var filtered = [];
+        for (var i = 0; i < d.length; i++) {
+          var p = d[i];
+          var proj = (p.project || "").toLowerCase();
+          var sym = (p.symbol || "").toLowerCase();
+          var matchProto = PROTOCOLS.indexOf(proj) !== -1;
+          var matchStable = false;
+          for (var j = 0; j < STABLES.length; j++) {
+            if (sym.indexOf(STABLES[j]) !== -1) { matchStable = true; break; }
+          }
+          var borrowUsd = p.totalBorrowUsd || 0;
+          if (matchProto && matchStable && borrowUsd > 1000000) {
+            filtered.push({
+              project: p.project,
+              symbol: p.symbol,
+              chain: p.chain,
+              tvlUsd: p.tvlUsd || 0,
+              apyBorrow: p.apyBaseBorrow || 0,
+              totalBorrowUsd: p.totalBorrowUsd || 0,
+              totalSupplyUsd: p.totalSupplyUsd || 0,
+              utilization: (p.totalSupplyUsd && p.totalSupplyUsd > 0) ? (p.totalBorrowUsd / p.totalSupplyUsd) * 100 : 0,
+            });
+          }
+        }
+        filtered.sort(function(a, b) { return b.totalBorrowUsd - a.totalBorrowUsd; });
+        setPools(filtered);
       } else {
-        status.llama = String(pR.reason?.message || "failed");
+        status.llama = String((pR.reason && pR.reason.message) || "failed");
       }
 
-      if (bR.status === "fulfilled" && bR.value?.bitcoin) {
+      if (bR.status === "fulfilled" && bR.value && bR.value.bitcoin) {
         status.coingecko = "ok";
         setBtcMcap(bR.value.bitcoin.usd_market_cap);
       } else {
-        status.coingecko = bR.status === "rejected" ? String(bR.reason?.message || "failed") : "no data";
+        status.coingecko = bR.status === "rejected" ? String((bR.reason && bR.reason.message) || "failed") : "no data";
       }
 
       if (hR.status === "fulfilled" && Array.isArray(hR.value)) {
         status.hyperliquid = "ok";
-        const arr = hR.value;
-        const meta = arr[0];
-        const ctx = arr[1];
-        const universe = meta?.universe || [];
-        setHlData(universe.map((u, i) => ({
-          name: u.name,
-          funding: parseFloat(ctx[i]?.funding || 0),
-          openInterest: parseFloat(ctx[i]?.openInterest || 0),
-          markPx: parseFloat(ctx[i]?.markPx || 0),
-        })));
+        var meta = hR.value[0];
+        var ctx = hR.value[1];
+        var universe = (meta && meta.universe) ? meta.universe : [];
+        var mapped = [];
+        for (var k = 0; k < universe.length; k++) {
+          mapped.push({
+            name: universe[k].name,
+            funding: parseFloat((ctx[k] && ctx[k].funding) || 0),
+            openInterest: parseFloat((ctx[k] && ctx[k].openInterest) || 0),
+            markPx: parseFloat((ctx[k] && ctx[k].markPx) || 0),
+          });
+        }
+        setHlData(mapped);
       } else {
-        status.hyperliquid = hR.status === "rejected" ? String(hR.reason?.message || "failed") : "no data";
+        status.hyperliquid = hR.status === "rejected" ? String((hR.reason && hR.reason.message) || "failed") : "no data";
       }
 
       setApiStatus(status);
       setTs(new Date());
-    } catch (e) {
-      setError(String(e.message || e));
-    } finally {
       setLoading(false);
-    }
+    }).catch(function(e) {
+      setError(String(e.message || e));
+      setLoading(false);
+    });
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(function() { fetchAll(); }, [fetchAll]);
 
-  const m = useMemo(() => {
+  var m = useMemo(function() {
     if (!pools.length) return null;
-    const totalW = pools.reduce((s, p) => s + p.totalBorrowUsd, 0);
-    const wBR = totalW > 0 ? pools.reduce((s, p) => s + p.apyBorrow * p.totalBorrowUsd, 0) / totalW : 0;
-    const brS = scoreLinear(wBR, 3, 7, 20, 45);
+    var totalW = 0;
+    for (var i = 0; i < pools.length; i++) totalW += pools[i].totalBorrowUsd;
 
-    const btcF = hlData?.find(a => a.name === "BTC");
-    const ethF = hlData?.find(a => a.name === "ETH");
-    const btcFA = btcF ? btcF.funding * 3 * 365 * 100 : null;
-    const ethFA = ethF ? ethF.funding * 3 * 365 * 100 : null;
-    const fArr = [btcFA, ethFA].filter(x => x != null);
-    const fAvg = fArr.length ? fArr.reduce((a, b) => a + b, 0) / fArr.length : 0;
-    const fS = scoreLinear(fAvg, -5, 5, 25, 70);
-    const l1 = brS * 0.55 + fS * 0.45;
+    var wBR = 0;
+    if (totalW > 0) {
+      var sumBR = 0;
+      for (var i = 0; i < pools.length; i++) sumBR += pools[i].apyBorrow * pools[i].totalBorrowUsd;
+      wBR = sumBR / totalW;
+    }
+    var brS = scoreLinear(wBR, 3, 7, 20, 45);
 
-    const wU = totalW > 0 ? pools.reduce((s, p) => s + p.utilization * p.totalBorrowUsd, 0) / totalW : 0;
-    const uS = scoreLinear(wU, 55, 72, 87, 95);
-    const tB = pools.reduce((s, p) => s + p.totalBorrowUsd, 0);
-    const bMR = btcMcap ? (tB / btcMcap) * 100 : null;
-    const bMS = bMR != null ? scoreLinear(bMR, 0.2, 0.5, 1.2, 2.5) : 0;
-    const bAS = scoreLinear(tB / 1e9, 2, 6, 15, 30);
-    const l2 = uS * 0.3 + bMS * 0.3 + bAS * 0.4;
+    var btcF = null, ethF = null;
+    if (hlData) {
+      for (var i = 0; i < hlData.length; i++) {
+        if (hlData[i].name === "BTC") btcF = hlData[i];
+        if (hlData[i].name === "ETH") ethF = hlData[i];
+      }
+    }
+    var btcFA = btcF ? btcF.funding * 3 * 365 * 100 : null;
+    var ethFA = ethF ? ethF.funding * 3 * 365 * 100 : null;
+    var fArr = [];
+    if (btcFA != null) fArr.push(btcFA);
+    if (ethFA != null) fArr.push(ethFA);
+    var fAvg = fArr.length ? fArr.reduce(function(a, b) { return a + b; }, 0) / fArr.length : 0;
+    var fS = scoreLinear(fAvg, -5, 5, 25, 70);
+    var l1 = brS * 0.55 + fS * 0.45;
 
-    const tOI = hlData ? hlData.reduce((s, a) => s + a.openInterest * a.markPx, 0) : 0;
-    const btcOI = btcF ? btcF.openInterest * btcF.markPx : 0;
-    const ethOI = ethF ? ethF.openInterest * ethF.markPx : 0;
-    const conc = tOI > 0 ? ((btcOI + ethOI) / tOI) * 100 : 0;
-    const cS = tOI > 0 ? scoreLinear(100 - conc, 20, 35, 55, 75) : 0;
-    const oiS = tOI > 0 ? scoreLinear(tOI / 1e9, 3, 8, 20, 40) : 0;
-    const fDiv = (btcFA != null && ethFA != null) ? Math.abs(btcFA - ethFA) : 0;
-    const dS = scoreLinear(fDiv, 2, 8, 25, 60);
-    const l3 = oiS * 0.45 + cS * 0.3 + dS * 0.25;
+    var wU = 0;
+    if (totalW > 0) {
+      var sumU = 0;
+      for (var i = 0; i < pools.length; i++) sumU += pools[i].utilization * pools[i].totalBorrowUsd;
+      wU = sumU / totalW;
+    }
+    var uS = scoreLinear(wU, 55, 72, 87, 95);
+    var tB = totalW;
+    var bMR = btcMcap ? (tB / btcMcap) * 100 : null;
+    var bMS = bMR != null ? scoreLinear(bMR, 0.2, 0.5, 1.2, 2.5) : 0;
+    var bAS = scoreLinear(tB / 1e9, 2, 6, 15, 30);
+    var l2 = uS * 0.3 + bMS * 0.3 + bAS * 0.4;
 
-    const comp = l1 * 0.4 + l2 * 0.35 + l3 * 0.25;
+    var tOI = 0;
+    if (hlData) {
+      for (var i = 0; i < hlData.length; i++) tOI += hlData[i].openInterest * hlData[i].markPx;
+    }
+    var btcOI = btcF ? btcF.openInterest * btcF.markPx : 0;
+    var ethOI = ethF ? ethF.openInterest * ethF.markPx : 0;
+    var conc = tOI > 0 ? ((btcOI + ethOI) / tOI) * 100 : 0;
+    var cS = tOI > 0 ? scoreLinear(100 - conc, 20, 35, 55, 75) : 0;
+    var oiS = tOI > 0 ? scoreLinear(tOI / 1e9, 3, 8, 20, 40) : 0;
+    var fDiv = (btcFA != null && ethFA != null) ? Math.abs(btcFA - ethFA) : 0;
+    var dS = scoreLinear(fDiv, 2, 8, 25, 60);
+    var l3 = oiS * 0.45 + cS * 0.3 + dS * 0.25;
 
-    return { wBR, brS, btcFA, ethFA, fAvg, fS, l1, wU, uS, tB, bMR, bMS, bAS, l2, tOI, conc, cS, oiS, fDiv, dS, l3, comp };
+    var comp = l1 * 0.4 + l2 * 0.35 + l3 * 0.25;
+
+    return { wBR: wBR, brS: brS, btcFA: btcFA, ethFA: ethFA, fAvg: fAvg, fS: fS, l1: l1, wU: wU, uS: uS, tB: tB, bMR: bMR, bMS: bMS, bAS: bAS, l2: l2, tOI: tOI, conc: conc, cS: cS, oiS: oiS, fDiv: fDiv, dS: dS, l3: l3, comp: comp };
   }, [pools, btcMcap, hlData]);
 
-  const f = "'IBM Plex Mono', 'SF Mono', 'Menlo', monospace";
+  var f = "'IBM Plex Mono', 'SF Mono', 'Menlo', monospace";
 
   return (
     <div style={{ "--f": f, fontFamily: f, background: "#fafafa", minHeight: "100vh", padding: "16px 14px", color: "#333", fontSize: 12 }}>
@@ -274,12 +321,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* API Status indicators */}
       {!loading && Object.keys(apiStatus).length > 0 && (
         <div style={{ display: "flex", gap: 12, marginBottom: 10, fontSize: 9 }}>
           {[["DeFiLlama", apiStatus.llama], ["CoinGecko", apiStatus.coingecko], ["Hyperliquid", apiStatus.hyperliquid]].map(function(item) {
-            var name = item[0];
-            var st = item[1];
+            var name = item[0], st = item[1];
             return (
               <span key={name} style={{ display: "flex", alignItems: "center", gap: 3 }}>
                 <span style={{
@@ -308,9 +353,8 @@ export default function App() {
       ) : !m ? (
         <div style={{ textAlign: "center", padding: 40, color: "#999", fontSize: 11 }}>
           <div style={{ marginBottom: 8 }}>No lending pool data loaded.</div>
-          <div style={{ color: "#bbb", fontSize: 10, lineHeight: 1.6 }}>
-            DeFiLlama API may be temporarily unavailable or rate-limited.<br />
-            Click \u21bb to retry.
+          <div style={{ color: "#bbb", fontSize: 10 }}>
+            API may be temporarily unavailable. Click refresh to retry.
           </div>
         </div>
       ) : (
@@ -387,7 +431,7 @@ export default function App() {
               padding: "8px 12px", cursor: "pointer", display: "flex",
               justifyContent: "space-between", fontSize: 10, color: "#999", userSelect: "none",
             }}>
-              <span>Pool Data \u00b7 {pools.length} pools</span>
+              <span>Pool Data &middot; {pools.length} pools</span>
               <span>{showRaw ? "\u25b2" : "\u25bc"}</span>
             </div>
             {showRaw && (
@@ -395,7 +439,7 @@ export default function App() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
                   <thead>
                     <tr style={{ color: "#aaa", borderBottom: "1px solid #eee", textAlign: "left" }}>
-                      {["Protocol", "Asset", "Chain", "Borrow%", "Util%", "Borrows", "TVL"].map(function(h) {
+                      {["Protocol", "Asset", "Chain", "Borrow%", "Util%", "Borrows", "Supply"].map(function(h) {
                         return <th key={h} style={{ padding: "5px 8px", fontWeight: 500 }}>{h}</th>;
                       })}
                     </tr>
@@ -405,12 +449,12 @@ export default function App() {
                       return (
                         <tr key={i} style={{ borderBottom: "1px solid #f5f5f7", color: "#555" }}>
                           <td style={{ padding: "4px 8px" }}>{p.project}</td>
-                          <td style={{ padding: "4px 8px" }}>{p.symbol ? p.symbol.split("-")[0] : p.symbol}</td>
+                          <td style={{ padding: "4px 8px" }}>{p.symbol}</td>
                           <td style={{ padding: "4px 8px", color: "#aaa" }}>{p.chain}</td>
                           <td style={{ padding: "4px 8px", color: p.apyBorrow > 15 ? "#d4522a" : "#555" }}>{pct(p.apyBorrow)}</td>
                           <td style={{ padding: "4px 8px", color: p.utilization > 85 ? "#d4522a" : "#555" }}>{pct(p.utilization)}</td>
                           <td style={{ padding: "4px 8px" }}>{"$" + fmt(p.totalBorrowUsd)}</td>
-                          <td style={{ padding: "4px 8px", color: "#aaa" }}>{"$" + fmt(p.tvlUsd)}</td>
+                          <td style={{ padding: "4px 8px", color: "#aaa" }}>{"$" + fmt(p.totalSupplyUsd)}</td>
                         </tr>
                       );
                     })}
