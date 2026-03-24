@@ -512,6 +512,12 @@ export default function App() {
           <b style={{color:"#999"}}>{t.coverage}:</b> {t.coverage_desc}<br />
           <b style={{color:"#999"}}>{t.methodology}:</b> Cost(40%): borrow rate + perp funding | Capacity(35%): util + borrows + borrows/BTC mcap + vol momentum | Risk(25%): HL OI + concentration + funding div + net flow | Cron: daily 06:00 UTC
         </div>
+        <div style={{marginTop:8,fontSize:10}}>
+          <a href="https://dune.com/ozark/onchain-leverage-index" target="_blank" rel="noopener noreferrer" style={{color:"#7c8cf5",textDecoration:"none",fontWeight:600}}>
+            Dune Dashboard &rarr;
+          </a>
+          <span style={{color:"#ccc",marginLeft:8,fontSize:9}}>{lang==="ko"?"Dune\uC5D0\uC11C \uC9C1\uC811 \uCFFC\uB9AC \uC2E4\uD589 \uBC0F \uB370\uC774\uD130 \uD655\uC778":"Run queries and explore raw data on Dune"}</span>
+        </div>
       </>)}
     </div>
   );
