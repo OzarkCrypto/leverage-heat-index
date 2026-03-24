@@ -19,8 +19,11 @@ var T = {
     chart_wow: "WoW",
     chart_net: "Net 7d",
     borrow_vol: "Borrow Vol (7d MA)",
+    borrow_vol_exp: "Daily new stablecoin borrow amount, smoothed with 7-day moving average",
     net_inflow: "Net Inflow",
+    net_inflow_exp: "Days where new borrows > repayments = leverage is expanding",
     net_outflow: "Net Outflow",
+    net_outflow_exp: "Days where repayments > new borrows = deleveraging is occurring",
     cost_title: "Borrow Cost",
     cap_title: "Utilization & Capacity",
     risk_title: "OI & Risk",
@@ -32,18 +35,18 @@ var T = {
     coverage_desc: "88.7% of all stablecoin lending across 5+ protocols on 6 EVM chains. Updates daily 06:00 UTC.",
     methodology: "Methodology",
     // Metric explanations
-    exp_borrow_rate: "TVL-weighted average borrow APY across all tracked stablecoin pools. Higher = more expensive to borrow = higher leverage demand.",
-    exp_btc_funding: "BTC perpetual futures funding rate (annualized) on Hyperliquid. Positive = longs pay shorts = bullish leverage bias.",
-    exp_eth_funding: "ETH perpetual futures funding rate (annualized) on Hyperliquid.",
-    exp_avg_funding: "Average of BTC + ETH annualized funding rates. Core signal for directional leverage sentiment.",
-    exp_util: "Weighted average pool utilization (borrows / supply). Above 85% approaches kink points where rates spike non-linearly.",
-    exp_total_borrows: "Absolute stablecoin borrow outstanding across all tracked protocols. Scale of leverage in the system.",
-    exp_borrows_mcap: "Total stablecoin borrows as % of BTC market cap. Measures leverage density relative to market size.",
-    exp_vol_mom: "7-day average daily borrow volume vs previous 7 days. Rising = accelerating leverage demand.",
-    exp_hl_oi: "Total notional open interest across all Hyperliquid perpetual pairs. Scale of speculative positioning.",
-    exp_oi_conc: "Share of OI in BTC+ETH vs alts. Low concentration = alt leverage frenzy = speculative excess.",
-    exp_fund_div: "Absolute difference between BTC and ETH annualized funding. High divergence = fragmented market stress.",
-    exp_net_flow: "7-day borrow/repay ratio. >1 = net leverage expansion, <1 = net deleveraging.",
+    exp_borrow_rate: "Each lending pool's variable borrow APY, weighted by that pool's total borrow outstanding. Pools with larger borrows have more weight. This represents the market-wide cost of borrowing stablecoins. When demand to borrow is high, rates rise. When demand is low, rates fall. This is the most direct proxy for leverage demand.",
+    exp_btc_funding: "BTC perpetual futures funding rate on Hyperliquid, converted to annualized %. Funding is paid every 8 hours between longs and shorts. Positive = longs pay shorts (bullish bias, leveraged longs dominate). Negative = shorts pay longs (bearish bias). This measures directional leverage sentiment in the derivatives market.",
+    exp_eth_funding: "ETH perpetual futures funding rate on Hyperliquid, annualized. Same mechanics as BTC funding. ETH funding often diverges from BTC during alt-season or ETH-specific catalysts.",
+    exp_avg_funding: "Simple average of BTC and ETH annualized funding rates. This is the core directional leverage signal from the perp market. Sustained high funding (>15% ann) historically precedes deleveraging events. Negative funding is rare and signals extreme bearish positioning.",
+    exp_util: "Total borrows / total supply across all tracked pools, weighted by borrow size. When utilization exceeds ~85%, most protocols hit a 'kink point' where the interest rate curve steepens sharply \u2014 rates spike non-linearly to incentivize repayment. High utilization means available liquidity is nearly exhausted.",
+    exp_total_borrows: "Sum of all stablecoin borrow outstanding across Aave, Compound, Morpho, Spark, Venus, Radiant, Fluid. This is the absolute scale of on-chain leverage. Unlike rates or utilization which are ratios, this captures the raw dollar magnitude of leverage in the system.",
+    exp_borrows_mcap: "Total stablecoin borrows divided by BTC market cap. This normalizes leverage size against the overall market. A rising ratio means leverage is growing faster than the market, indicating increasing leverage density. Useful for cross-cycle comparison.",
+    exp_vol_mom: "Average daily new borrow volume over the last 7 days vs the previous 7 days, expressed as % change. Positive = borrow activity is accelerating (new leverage being added faster). Negative = borrow activity is decelerating. This is a momentum indicator for leverage demand, sourced from Dune on-chain transaction data.",
+    exp_hl_oi: "Total notional value of all open perpetual futures positions on Hyperliquid (contract size \u00d7 mark price, summed across all 229 assets). This measures the total scale of speculative positioning. Rising OI = new capital entering leveraged positions. Falling OI = positions being closed.",
+    exp_oi_conc: "What share of total Hyperliquid OI sits in BTC + ETH vs altcoins. When BTC+ETH concentration is high, speculation is focused on majors (healthier). When concentration drops (alts take larger OI share), it signals an alt leverage frenzy \u2014 historically a sign of speculative excess that precedes corrections.",
+    exp_fund_div: "Absolute difference between BTC and ETH annualized funding rates. When both trade at similar funding, the market has coherent positioning. Large divergence signals fragmented or stressed markets \u2014 e.g., ETH funding spiking while BTC stays flat suggests ETH-specific leverage buildup.",
+    exp_net_flow: "Sum of all stablecoin borrows over 7 days divided by sum of all repayments over 7 days. >1.0 means more was borrowed than repaid = net leverage expansion. <1.0 means more was repaid than borrowed = net deleveraging. This is the clearest on-chain signal of whether leverage is growing or shrinking, sourced from Dune.",
     // Regime descriptions
     reg_extreme: "On-chain leverage is at historically elevated levels. Borrow rates, utilization, and speculative positioning are all running hot.",
     reg_leveraging: "Market is actively adding leverage. Borrow demand is above average and funding rates are elevated.",
@@ -77,8 +80,11 @@ var T = {
     chart_wow: "\uC804\uC8FC\uBE44",
     chart_net: "\uC21C 7\uC77C",
     borrow_vol: "\uB300\uCD9C \uBCFC\uB968 (7\uC77C MA)",
+    borrow_vol_exp: "\uC77C\uBCC4 \uC2A4\uD14C\uC774\uBE14\uCF54\uC778 \uC2E0\uADDC \uB300\uCD9C\uAE08\uC561\uC744 7\uC77C \uC774\uB3D9\uD3C9\uADE0\uC73C\uB85C \uC2A4\uBB34\uB529",
     net_inflow: "\uC21C \uC720\uC785",
+    net_inflow_exp: "\uC2E0\uADDC \uB300\uCD9C > \uC0C1\uD658\uC778 \uB0A0 = \uB808\uBC84\uB9AC\uC9C0\uAC00 \uC21C\uC99D\uAC00\uD558\uB294 \uC911",
     net_outflow: "\uC21C \uC720\uCD9C",
+    net_outflow_exp: "\uC0C1\uD658 > \uC2E0\uADDC \uB300\uCD9C\uC778 \uB0A0 = \uB514\uB808\uBC84\uB9AC\uC9D5 \uC9C4\uD589 \uC911",
     cost_title: "\uCC28\uC785 \uBE44\uC6A9",
     cap_title: "\uD65C\uC6A9\uB960 & \uC6A9\uB7C9",
     risk_title: "OI & \uB9AC\uC2A4\uD06C",
@@ -89,18 +95,18 @@ var T = {
     coverage: "\uCEE4\uBC84\uB9AC\uC9C0",
     coverage_desc: "6\uAC1C EVM \uCCB4\uC778, 5\uAC1C+ \uD504\uB85C\uD1A0\uCF5C\uC758 \uC2A4\uD14C\uC774\uBE14\uCF54\uC778 \uB300\uCD9C\uC758 88.7% \uCEE4\uBC84. \uB9E4\uC77C 06:00 UTC \uC790\uB3D9 \uC5C5\uB370\uC774\uD2B8.",
     methodology: "\uBC29\uBC95\uB860",
-    exp_borrow_rate: "TVL \uAC00\uC911\uD3C9\uADE0 \uC2A4\uD14C\uC774\uBE14\uCF54\uC778 \uB300\uCD9C \uAE08\uB9AC. \uB192\uC744\uC218\uB85D \uCC28\uC785 \uBE44\uC6A9 \uBD80\uB2F4 \u2191 = \uB808\uBC84\uB9AC\uC9C0 \uC218\uC694 \u2191",
-    exp_btc_funding: "Hyperliquid BTC \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8(\uC5F0\uD658\uC0B0). \uC591\uC218 = \uB871\uC774 \uC219\uC5D0\uAC8C \uC9C0\uBD88 = \uAC15\uC138 \uB808\uBC84\uB9AC\uC9C0 \uD3B8\uD5A5",
-    exp_eth_funding: "Hyperliquid ETH \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8(\uC5F0\uD658\uC0B0).",
-    exp_avg_funding: "BTC+ETH \uD3C9\uADE0 \uC5F0\uD658\uC0B0 \uD380\uB529. \uBC29\uD5A5\uC131 \uB808\uBC84\uB9AC\uC9C0 \uC2EC\uB9AC\uC758 \uD575\uC2EC \uC2E0\uD638.",
-    exp_util: "\uAC00\uC911 \uD3C9\uADE0 \uD480 \uD65C\uC6A9\uB960(borrow/supply). 85% \uC774\uC0C1\uC774\uBA74 kink point \uC811\uADFC \u2192 \uAE08\uB9AC \uBE44\uC120\uD615 \uAE09\uB4F1.",
-    exp_total_borrows: "\uCD94\uC801 \uD504\uB85C\uD1A0\uCF5C \uC804\uCCB4 \uC2A4\uD14C\uC774\uBE14\uCF54\uC778 \uB300\uCD9C \uC794\uC561. \uC2DC\uC2A4\uD15C \uB0B4 \uB808\uBC84\uB9AC\uC9C0 \uADDC\uBAA8.",
-    exp_borrows_mcap: "BTC \uC2DC\uCD1D \uB300\uBE44 \uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C \uBE44\uC728. \uC2DC\uC7A5 \uADDC\uBAA8 \uB300\uBE44 \uB808\uBC84\uB9AC\uC9C0 \uBC00\uB3C4 \uCE21\uC815.",
-    exp_vol_mom: "7\uC77C \uD3C9\uADE0 \uC77C\uC77C \uB300\uCD9C\uB7C9 vs \uC774\uC804 7\uC77C. \uC0C1\uC2B9 = \uB808\uBC84\uB9AC\uC9C0 \uC218\uC694 \uAC00\uC18D.",
-    exp_hl_oi: "Hyperliquid \uC804\uCCB4 \uBB34\uAE30\uD55C \uBBF8\uACB0\uC81C\uC57D\uC815 \uADDC\uBAA8. \uD22C\uAE30\uC801 \uD3EC\uC9C0\uC158\uB2DD \uADDC\uBAA8.",
-    exp_oi_conc: "BTC+ETH OI \uBE44\uC911. \uB0AE\uC73C\uBA74 \uC54C\uD2B8 \uB808\uBC84\uB9AC\uC9C0 \uD3ED\uBC1C = \uD22C\uAE30\uC801 \uACFC\uC5F4.",
-    exp_fund_div: "BTC-ETH \uD380\uB529 \uAD34\uB9AC \uC808\uB300\uAC12. \uD070 \uAD34\uB9AC = \uC2DC\uC7A5 \uC2A4\uD2B8\uB808\uC2A4 \uBD84\uD654.",
-    exp_net_flow: "7\uC77C \uB300\uCD9C/\uC0C1\uD658 \uBE44\uC728. >1 = \uC21C \uB808\uBC84\uB9AC\uC9C0 \uD655\uB300, <1 = \uC21C \uB514\uB808\uBC84\uB9AC\uC9D5.",
+    exp_borrow_rate: "\uAC01 \uB80C\uB529 \uD480\uC758 \uBCC0\uB3D9 \uB300\uCD9C \uAE08\uB9AC(APY)\uB97C \uD574\uB2F9 \uD480\uC758 \uB300\uCD9C \uC794\uC561\uC73C\uB85C \uAC00\uC911\uD3C9\uADE0\uD55C \uAC12. \uB300\uCD9C \uC794\uC561\uC774 \uD070 \uD480\uC77C\uC218\uB85D \uAC00\uC911\uCE58\uAC00 \uB192\uB2E4. \uC774 \uC218\uCE58\uAC00 '\uC2DC\uC7A5 \uC804\uCCB4\uC758 \uB300\uD45C \uCC28\uC785 \uBE44\uC6A9'\uC774\uB2E4. \uB192\uC73C\uBA74 \uBE4C\uB9AC\uB824\uB294 \uC218\uC694\uAC00 \uB9CE\uB2E4\uB294 \uB73B\uC774\uACE0, \uB0AE\uC73C\uBA74 \uC218\uC694\uAC00 \uC801\uB2E4\uB294 \uB73B\uC774\uB2E4. \uB808\uBC84\uB9AC\uC9C0 \uC218\uC694\uC758 \uAC00\uC7A5 \uC9C1\uC811\uC801\uC778 \uD504\uB85D\uC2DC.",
+    exp_btc_funding: "Hyperliquid BTC \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8\uB97C \uC5F0\uD658\uC0B0\uD55C \uAC12. \uD380\uB529\uC740 8\uC2DC\uAC04\uB9C8\uB2E4 \uB871\uACFC \uC219 \uC0AC\uC774\uC5D0\uC11C \uC9C0\uBD88\uB41C\uB2E4. \uC591\uC218 = \uB871\uC774 \uC219\uC5D0\uAC8C \uC9C0\uBD88(\uAC15\uC138 \uD3B8\uD5A5, \uB808\uBC84\uB9AC\uC9C0 \uB871\uC774 \uC9C0\uBC30\uC801). \uC74C\uC218 = \uC219\uC774 \uB871\uC5D0\uAC8C \uC9C0\uBD88(\uC57D\uC138 \uD3B8\uD5A5). \uD30C\uC0DD\uC0C1\uD488 \uC2DC\uC7A5\uC758 \uBC29\uD5A5\uC131 \uB808\uBC84\uB9AC\uC9C0 \uC2EC\uB9AC \uCE21\uC815.",
+    exp_eth_funding: "Hyperliquid ETH \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8(\uC5F0\uD658\uC0B0). BTC \uD380\uB529\uACFC \uB3D9\uC77C\uD55C \uBA54\uCEE4\uB2C8\uC998. \uC54C\uD2B8 \uC2DC\uC98C\uC774\uB098 ETH \uD2B9\uC815 \uCE90\uD0C8\uB9AC\uC2A4\uD2B8 \uC2DC BTC \uD380\uB529\uACFC \uAD34\uB9AC\uAC00 \uBC1C\uC0DD\uD560 \uC218 \uC788\uB2E4.",
+    exp_avg_funding: "BTC + ETH \uC5F0\uD658\uC0B0 \uD380\uB529\uC758 \uB2E8\uC21C \uD3C9\uADE0. perp \uC2DC\uC7A5\uC758 \uD575\uC2EC \uBC29\uD5A5\uC131 \uB808\uBC84\uB9AC\uC9C0 \uC2E0\uD638. \uC9C0\uC18D\uC801\uC73C\uB85C \uB192\uC740 \uD380\uB529(>15% \uC5F0\uD658\uC0B0)\uC740 \uC5ED\uC0AC\uC801\uC73C\uB85C \uB514\uB808\uBC84\uB9AC\uC9D5 \uC774\uBCA4\uD2B8\uC5D0 \uC120\uD589\uD588\uB2E4. \uC74C\uC218 \uD380\uB529\uC740 \uB4DC\uBB3C\uACE0 \uADF9\uB2E8\uC801 \uC57D\uC138 \uD3EC\uC9C0\uC154\uB2DD\uC744 \uC758\uBBF8.",
+    exp_util: "\uC804\uCCB4 \uCD94\uC801 \uD480\uC758 \uB300\uCD9C\uC561/\uACF5\uAE09\uC561 \uBE44\uC728\uC744 \uB300\uCD9C \uADDC\uBAA8\uB85C \uAC00\uC911\uD3C9\uADE0. ~85%\uB97C \uB118\uC73C\uBA74 \uB300\uBD80\uBD84 \uD504\uB85C\uD1A0\uCF5C\uC758 \uAE08\uB9AC \uACE1\uC120\uC774 \uAE09\uACBD\uC0AC\uB97C \uC774\uB8E8\uB294 'kink point'\uC5D0 \uB3C4\uB2EC \u2014 \uAE08\uB9AC\uAC00 \uBE44\uC120\uD615\uC801\uC73C\uB85C \uAE09\uB4F1\uD558\uC5EC \uC0C1\uD658\uC744 \uC720\uB3C4\uD55C\uB2E4. \uB192\uC740 \uD65C\uC6A9\uB960 = \uAC00\uC6A9 \uC720\uB3D9\uC131\uC774 \uAC70\uC758 \uC18C\uC9C4.",
+    exp_total_borrows: "Aave, Compound, Morpho, Spark, Venus, Radiant, Fluid \uC804\uCCB4\uC758 \uC2A4\uD14C\uC774\uBE14\uCF54\uC778 \uB300\uCD9C \uC794\uC561 \uD569\uACC4. \uAE08\uB9AC\uB098 \uD65C\uC6A9\uB960 \uAC19\uC740 \uBE44\uC728\uC774 \uC544\uB2C8\uB77C, \uC2DC\uC2A4\uD15C \uB0B4 \uB808\uBC84\uB9AC\uC9C0\uC758 \uC808\uB300\uC801 \uB2EC\uB7EC \uADDC\uBAA8\uB97C \uBCF4\uC5EC\uC900\uB2E4.",
+    exp_borrows_mcap: "\uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C \uCD1D\uC561\uC744 BTC \uC2DC\uAC00\uCD1D\uC561\uC73C\uB85C \uB098\uB208 \uAC12. \uC2DC\uC7A5 \uADDC\uBAA8 \uB300\uBE44 \uB808\uBC84\uB9AC\uC9C0\uB97C \uC815\uADDC\uD654\uD55C\uB2E4. \uC774 \uBE44\uC728\uC774 \uC624\uB974\uBA74 \uC2DC\uC7A5\uBCF4\uB2E4 \uB808\uBC84\uB9AC\uC9C0\uAC00 \uB354 \uBE60\uB974\uAC8C \uC131\uC7A5\uD558\uB294 \uAC83. \uC0AC\uC774\uD074 \uAC04 \uBE44\uAD50\uC5D0 \uC720\uC6A9.",
+    exp_vol_mom: "\uCD5C\uADFC 7\uC77C \uD3C9\uADE0 \uC77C\uC77C \uC2E0\uADDC \uB300\uCD9C\uB7C9 vs \uC774\uC804 7\uC77C\uC758 % \uBCC0\uD654. \uC591\uC218 = \uB300\uCD9C \uD65C\uB3D9 \uAC00\uC18D(\uC0C8 \uB808\uBC84\uB9AC\uC9C0\uAC00 \uB354 \uBE60\uB974\uAC8C \uCD94\uAC00\uB428). \uC74C\uC218 = \uB300\uCD9C \uD65C\uB3D9 \uAC10\uC18D. \uB808\uBC84\uB9AC\uC9C0 \uC218\uC694\uC758 \uBAA8\uBA58\uD140 \uC9C0\uD45C. Dune \uC628\uCCB4\uC778 \uD2B8\uB79C\uC7AD\uC158 \uB370\uC774\uD130 \uAE30\uBC18.",
+    exp_hl_oi: "Hyperliquid \uC804\uCCB4 229\uAC1C \uC790\uC0B0\uC758 \uBB34\uAE30\uD55C \uBBF8\uACB0\uC81C\uC57D\uC815 \uCD1D \uBA85\uBAA9\uAC00\uCE58(\uACC4\uC57D \uC218 \u00d7 \uB9C8\uD06C \uAC00\uACA9). \uD22C\uAE30\uC801 \uD3EC\uC9C0\uC154\uB2DD\uC758 \uCD1D \uADDC\uBAA8. OI \uC0C1\uC2B9 = \uC0C8\uB85C\uC6B4 \uC790\uBCF8\uC774 \uB808\uBC84\uB9AC\uC9C0 \uD3EC\uC9C0\uC158\uC5D0 \uC9C4\uC785. OI \uD558\uB77D = \uD3EC\uC9C0\uC158 \uC815\uB9AC.",
+    exp_oi_conc: "\uC804\uCCB4 Hyperliquid OI \uC911 BTC+ETH\uAC00 \uCC28\uC9C0\uD558\uB294 \uBE44\uC911. BTC+ETH \uC9D1\uC911\uB3C4\uAC00 \uB192\uC73C\uBA74 \uD22C\uAE30\uAC00 \uBA54\uC774\uC800\uC5D0 \uC9D1\uC911(\uAC74\uAC15). \uC9D1\uC911\uB3C4\uAC00 \uB5A8\uC5B4\uC9C0\uBA74(\uC54C\uD2B8\uAC00 OI \uBE44\uC911 \uC99D\uAC00) \uC54C\uD2B8 \uB808\uBC84\uB9AC\uC9C0 \uD3ED\uBC1C \u2014 \uC5ED\uC0AC\uC801\uC73C\uB85C \uC870\uC815\uC5D0 \uC120\uD589\uD558\uB294 \uD22C\uAE30\uC801 \uACFC\uC5F4 \uC2E0\uD638.",
+    exp_fund_div: "BTC\uC640 ETH \uC5F0\uD658\uC0B0 \uD380\uB529\uC758 \uC808\uB300\uAC12 \uCC28\uC774. \uB458 \uB2E4 \uBE44\uC2B7\uD55C \uD380\uB529\uC774\uBA74 \uC2DC\uC7A5\uC774 \uC77C\uAD00\uB41C \uD3EC\uC9C0\uC154\uB2DD. \uAD34\uB9AC\uAC00 \uD06C\uBA74 \uC2DC\uC7A5 \uBD84\uD654/\uC2A4\uD2B8\uB808\uC2A4 \u2014 \uC608: ETH \uD380\uB529\uC774 \uAE09\uB4F1\uD558\uB294\uB370 BTC\uB294 \uBCF4\uD569\uC774\uBA74 ETH \uD2B9\uC815 \uB808\uBC84\uB9AC\uC9C0 \uCD95\uC801\uC744 \uC758\uBBF8.",
+    exp_net_flow: "7\uC77C\uAC04 \uC2A4\uD14C\uC774\uBE14 \uC2E0\uADDC \uB300\uCD9C \uCD1D\uC561 / 7\uC77C\uAC04 \uC0C1\uD658 \uCD1D\uC561. >1.0\uC774\uBA74 \uBE4C\uB9B0 \uAC83\uC774 \uAC1A\uC740 \uAC83\uBCF4\uB2E4 \uB9CE\uC74C = \uC21C \uB808\uBC84\uB9AC\uC9C0 \uD655\uB300. <1.0\uC774\uBA74 \uAC1A\uC740 \uAC83\uC774 \uBE4C\uB9B0 \uAC83\uBCF4\uB2E4 \uB9CE\uC74C = \uC21C \uB514\uB808\uBC84\uB9AC\uC9D5. \uB808\uBC84\uB9AC\uC9C0\uAC00 \uC131\uC7A5\uD558\uB294\uC9C0 \uCD95\uC18C\uD558\uB294\uC9C0\uC758 \uAC00\uC7A5 \uBA85\uD655\uD55C \uC628\uCCB4\uC778 \uC2E0\uD638. Dune \uB370\uC774\uD130 \uAE30\uBC18.",
     reg_extreme: "\uC628\uCCB4\uC778 \uB808\uBC84\uB9AC\uC9C0\uAC00 \uC5ED\uC0AC\uC801 \uACE0\uC810. \uB300\uCD9C \uAE08\uB9AC, \uD65C\uC6A9\uB960, \uD22C\uAE30\uC801 \uD3EC\uC9C0\uC158\uB2DD \uBAA8\uB450 \uACFC\uC5F4.",
     reg_leveraging: "\uC2DC\uC7A5\uC774 \uC801\uADF9\uC801\uC73C\uB85C \uB808\uBC84\uB9AC\uC9C0\uB97C \uCD94\uAC00\uD558\uB294 \uC911. \uB300\uCD9C \uC218\uC694 \uD3C9\uADE0 \uC774\uC0C1, \uD380\uB529 \uC0C1\uC2B9.",
     reg_warming: "\uB808\uBC84\uB9AC\uC9C0 \uC218\uC694\uAC00 \uC911\uB9BD\uC5D0\uC11C \uD68C\uBCF5 \uC911. \uD3EC\uC9C0\uC154\uB2DD \uD65C\uB3D9 \uCD08\uAE30 \uC9D5\uD6C4.",
@@ -233,10 +239,13 @@ function BorrowChart({ data, period, setPeriod, t }) {
       {yLabels}<path d={maArea} fill="#7c8cf510" />{netBars}<path d={maLine} stroke="#7c8cf5" strokeWidth={1.8} fill="none" />
       <line x1={pad.l} y1={pad.t + cH} x2={pad.l + cW} y2={pad.t + cH} stroke="#e0e0e4" strokeWidth={0.5} />{labels}
     </svg>
-    <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 9, color: "#999" }}>
-      <span><span style={{ display: "inline-block", width: 12, height: 2, background: "#7c8cf5", borderRadius: 1, marginRight: 3 }}></span>{t.borrow_vol}</span>
-      <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#0ea37150", borderRadius: 1, marginRight: 3 }}></span>{t.net_inflow}</span>
-      <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#d4522a50", borderRadius: 1, marginRight: 3 }}></span>{t.net_outflow}</span>
+    <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 9, color: "#999", flexWrap: "wrap" }}>
+      <span title={t.borrow_vol_exp}><span style={{ display: "inline-block", width: 12, height: 2, background: "#7c8cf5", borderRadius: 1, marginRight: 3 }}></span>{t.borrow_vol}</span>
+      <span title={t.net_inflow_exp}><span style={{ display: "inline-block", width: 8, height: 8, background: "#0ea37150", borderRadius: 1, marginRight: 3 }}></span>{t.net_inflow}</span>
+      <span title={t.net_outflow_exp}><span style={{ display: "inline-block", width: 8, height: 8, background: "#d4522a50", borderRadius: 1, marginRight: 3 }}></span>{t.net_outflow}</span>
+    </div>
+    <div style={{ fontSize: 9, color: "#bbb", marginTop: 4, lineHeight: 1.5 }}>
+      {t.borrow_vol}: {t.borrow_vol_exp} &middot; {t.net_inflow}: {t.net_inflow_exp} &middot; {t.net_outflow}: {t.net_outflow_exp}
     </div>
   </div>);
 }
@@ -445,13 +454,13 @@ export default function App() {
         {/* ── 3 LAYERS ── */}
         <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
           <Layer title={t.cost_title} wt={40} score={m.l1}>
-            <Row label="Wtd Borrow Rate" val={pct(m.wBR)} score={m.brS} sub="Aave/Compound/Morpho/Spark" exp={t.exp_borrow_rate} />
+            <Row label="Avg Borrow APY (weighted)" val={pct(m.wBR)} score={m.brS} sub="Aave/Compound/Morpho/Spark/Venus/Radiant/Fluid" exp={t.exp_borrow_rate} />
             <Row label="BTC Funding (ann)" val={m.btcFA != null ? pct(m.btcFA) : "\u2014"} score={null} sub="Hyperliquid" exp={t.exp_btc_funding} />
             <Row label="ETH Funding (ann)" val={m.ethFA != null ? pct(m.ethFA) : "\u2014"} score={null} exp={t.exp_eth_funding} />
             <Row label="Avg Funding" val={pct(m.fAvg)} score={m.fS} exp={t.exp_avg_funding} />
           </Layer>
           <Layer title={t.cap_title} wt={35} score={m.l2}>
-            <Row label="Wtd Utilization" val={pct(m.wU)} score={m.uS} exp={t.exp_util} />
+            <Row label="Pool Utilization (weighted)" val={pct(m.wU)} score={m.uS} exp={t.exp_util} />
             <Row label="Total Borrows" val={"$" + fmt(m.tB)} score={m.bAS} sub="absolute size" exp={t.exp_total_borrows} />
             <Row label="Borrows / BTC Mcap" val={m.bMR != null ? pct(m.bMR, 3) : "\u2014"} score={m.bMS} sub={btcMcap ? "mcap $" + fmt(btcMcap) : ""} exp={t.exp_borrows_mcap} />
             {duneMetrics && <Row label="7d Vol Momentum" val={(duneMetrics.volChange > 0 ? "+" : "") + duneMetrics.volChange.toFixed(1) + "%"} score={m.volMomS} sub="Dune" exp={t.exp_vol_mom} />}
