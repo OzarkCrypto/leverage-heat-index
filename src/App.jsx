@@ -194,8 +194,8 @@ function Gauge({ score, size }) {
   var nd = toR(nA), nl = r * 0.75;
   return (<svg width={size} height={size*0.56} viewBox={"0 0 "+size+" "+(size*0.56)}>
     {arcP}<line x1={cx} y1={cy} x2={cx+nl*Math.cos(nd)} y2={cy+nl*Math.sin(nd)} stroke={sColor(score)} strokeWidth={2} strokeLinecap="round" /><circle cx={cx} cy={cy} r={3} fill={sColor(score)} />
-    <text x={cx} y={cy+18} textAnchor="middle" fill={sColor(score)} style={{fontSize:20,fontWeight:700,fontFamily:"var(--f)"}}>{score>0?"+":""}{score.toFixed(2)}</text>
-    <text x={cx} y={cy+30} textAnchor="middle" fill={sColor(score)} style={{fontSize:8,fontWeight:600,fontFamily:"var(--f)",letterSpacing:1.5}}>{sLabel(score)}</text>
+    <text x={cx} y={cy+18} textAnchor="middle" fill={sColor(score)} style={{fontSize:24,fontWeight:700,fontFamily:"var(--f)"}}>{score>0?"+":""}{score.toFixed(2)}</text>
+    <text x={cx} y={cy+30} textAnchor="middle" fill={sColor(score)} style={{fontSize:10,fontWeight:600,fontFamily:"var(--f)",letterSpacing:1.5}}>{sLabel(score)}</text>
   </svg>);
 }
 
@@ -222,15 +222,15 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
   var crossX = pad.l + (activeIdx / filtered.length) * cW + barW / 2;
   var zeroY = pad.t + cH / 2;
   var labels = []; var step = Math.max(1, Math.floor(filtered.length / 10));
-  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>); }
-  var yLabels = [-2, -1, 0, 1, 2].map(function(v) { var y = pad.t + cH / 2 - (v / 3) * (cH / 2); return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 8 }}>{v > 0 ? "+" : ""}{v}</text></g>; });
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 11 }}>{filtered[i].dt.split(" ")[0]}</text>); }
+  var yLabels = [-2, -1, 0, 1, 2].map(function(v) { var y = pad.t + cH / 2 - (v / 3) * (cH / 2); return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 10 }}>{v > 0 ? "+" : ""}{v}</text></g>; });
   var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.floor((mouseX - pad.l) / cW * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
   return (<div ref={containerRef} style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
-      <div style={{ display: "flex", gap: 2 }}>{[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
+      <div style={{ display: "flex", gap: 2 }}>{[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:11,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
     </div>
-    <div style={{ fontSize: 10, marginBottom: 4, padding: "4px 8px", background: sColor(hovInfo.score) + "10", borderRadius: 4, display: "inline-flex", gap: 12, minHeight: 22 }}>
+    <div style={{ fontSize: 12, marginBottom: 4, padding: "4px 8px", background: sColor(hovInfo.score) + "10", borderRadius: 4, display: "inline-flex", gap: 12, minHeight: 22 }}>
       <b>{hovInfo.dt.split(" ")[0]}</b>
       <span style={{ color: sColor(hovInfo.score), fontWeight: 700 }}>{hovInfo.score > 0 ? "+" : ""}{hovInfo.score.toFixed(2)} {sLabel(hovInfo.score)}</span>
       <span>Vol: ${fmt(hovInfo.borrow)}</span>
@@ -243,7 +243,7 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
       {labels}
       <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
     </svg>
-    <div style={{ fontSize: 9, color: "#bbb", marginTop: 4 }}>{t.heat_desc}</div>
+    <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>{t.heat_desc}</div>
   </div>);
 }
 
@@ -272,9 +272,9 @@ function BorrowChart({ data, period, setPeriod, t }) {
   var barW = Math.max(1.5, cW / filtered.length * 0.7);
   var netBars = netPts.map(function(p, i) { var baseY = pad.t + cH / 2; var h = Math.abs(baseY - p.y); return <rect key={i} x={p.x - barW/2} y={p.val >= 0 ? p.y : baseY} width={barW} height={h || 0.5} fill={p.val >= 0 ? "#0ea37150" : "#d4522a50"} />; });
   var dateLabels = [], step = Math.max(1, Math.floor(filtered.length / 12));
-  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; dateLabels.push(<text key={i} x={x} y={H-6} textAnchor="middle" fill="#999" style={{fontSize:9.5}}>{filtered[i].dt.split(" ")[0]}</text>); }
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; dateLabels.push(<text key={i} x={x} y={H-6} textAnchor="middle" fill="#999" style={{fontSize:11}}>{filtered[i].dt.split(" ")[0]}</text>); }
   var yTicks = [0, maxB*0.25, maxB*0.5, maxB*0.75, maxB];
-  var yLabels = yTicks.map(function(v, i) { var y = pad.t + cH - (v / maxB) * cH; return <g key={i}><line x1={pad.l} y1={y} x2={pad.l+cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l-4} y={y+3} textAnchor="end" fill="#aaa" style={{fontSize:9}}>${fmt(v,0)}</text></g>; });
+  var yLabels = yTicks.map(function(v, i) { var y = pad.t + cH - (v / maxB) * cH; return <g key={i}><line x1={pad.l} y1={y} x2={pad.l+cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l-4} y={y+3} textAnchor="end" fill="#aaa" style={{fontSize:11}}>${fmt(v,0)}</text></g>; });
   var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
   var activeData = filtered[activeIdx];
   var activeNet = activeData.borrow - activeData.repay;
@@ -282,10 +282,10 @@ function BorrowChart({ data, period, setPeriod, t }) {
   var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.round((mouseX - pad.l) / cW * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
   return (<div ref={containerRef}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-      <span style={{fontSize:10,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase"}}>{t.chart_title} &middot; {period>=9999?"ALL":period+"D"}</span>
-      <div style={{display:"flex",gap:2}}>{PERIODS.map(function(p){var active=p.days===period;return <button key={p.label} onClick={function(){setPeriod(p.days);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:9,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.label}</button>;})}</div>
+      <span style={{fontSize:12,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase"}}>{t.chart_title} &middot; {period>=9999?"ALL":period+"D"}</span>
+      <div style={{display:"flex",gap:2}}>{PERIODS.map(function(p){var active=p.days===period;return <button key={p.label} onClick={function(){setPeriod(p.days);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:11,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.label}</button>;})}</div>
     </div>
-    <div style={{fontSize:10,marginBottom:4,padding:"4px 8px",background:"#f8f8fa",borderRadius:4,display:"inline-flex",gap:12,minHeight:22}}>
+    <div style={{fontSize:12,marginBottom:4,padding:"4px 8px",background:"#f8f8fa",borderRadius:4,display:"inline-flex",gap:12,minHeight:22}}>
       <b>{activeData.dt.split(" ")[0]}</b>
       <span>Vol: <b>${fmt(activeData.borrow)}</b></span>
       <span>Repay: <b>${fmt(activeData.repay)}</b></span>
@@ -299,12 +299,12 @@ function BorrowChart({ data, period, setPeriod, t }) {
       {dateLabels}
       <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
     </svg>
-    <div style={{display:"flex",gap:14,marginTop:4,fontSize:9,color:"#999",flexWrap:"wrap"}}>
+    <div style={{display:"flex",gap:14,marginTop:4,fontSize:11,color:"#999",flexWrap:"wrap"}}>
       <span><span style={{display:"inline-block",width:12,height:2,background:"#7c8cf5",borderRadius:1,marginRight:3}}></span>{t.borrow_vol}</span>
       <span><span style={{display:"inline-block",width:8,height:8,background:"#0ea37150",borderRadius:1,marginRight:3}}></span>{t.net_inflow}</span>
       <span><span style={{display:"inline-block",width:8,height:8,background:"#d4522a50",borderRadius:1,marginRight:3}}></span>{t.net_outflow}</span>
     </div>
-    <div style={{fontSize:9,color:"#bbb",marginTop:3,lineHeight:1.5}}>{t.borrow_vol}: {t.borrow_vol_exp} &middot; {t.net_inflow}: {t.net_inflow_exp} &middot; {t.net_outflow}: {t.net_outflow_exp}</div>
+    <div style={{fontSize:11,color:"#bbb",marginTop:3,lineHeight:1.5}}>{t.borrow_vol}: {t.borrow_vol_exp} &middot; {t.net_inflow}: {t.net_inflow_exp} &middot; {t.net_outflow}: {t.net_outflow_exp}</div>
   </div>);
 }
 
@@ -313,24 +313,24 @@ function Row({ label, val, score, sub, exp }) {
   return (<div>
     <div onClick={exp?function(){setSh(!sh);}:undefined} style={{display:"flex",alignItems:"center",padding:"5px 0",gap:6,borderBottom:"1px solid #f0f0f2",cursor:exp?"pointer":"default"}}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:11,color:"#444",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{exp&&<span style={{color:"#bbb",marginRight:3,fontSize:9}}>{sh?"\u25BC":"\u25B6"}</span>}{label}</div>
-        {sub&&<div style={{fontSize:9,color:"#aaa",marginTop:1}}>{sub}</div>}
+        <div style={{fontSize:13,color:"#444",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{exp&&<span style={{color:"#bbb",marginRight:3,fontSize:11}}>{sh?"\u25BC":"\u25B6"}</span>}{label}</div>
+        {sub&&<div style={{fontSize:11,color:"#aaa",marginTop:1}}>{sub}</div>}
       </div>
-      <div style={{fontSize:12,fontWeight:600,color:"#222",minWidth:65,textAlign:"right",whiteSpace:"nowrap"}}>{val}</div>
-      {score!=null&&<div style={{fontSize:10,fontWeight:700,color:sColor(score),minWidth:36,textAlign:"right",padding:"1px 5px",borderRadius:3,background:sColor(score)+"12"}}>{score>0?"+":""}{score.toFixed(1)}</div>}
+      <div style={{fontSize:14,fontWeight:600,color:"#222",minWidth:65,textAlign:"right",whiteSpace:"nowrap"}}>{val}</div>
+      {score!=null&&<div style={{fontSize:12,fontWeight:700,color:sColor(score),minWidth:36,textAlign:"right",padding:"1px 5px",borderRadius:3,background:sColor(score)+"12"}}>{score>0?"+":""}{score.toFixed(1)}</div>}
     </div>
-    {sh&&exp&&<div style={{fontSize:10,color:"#777",padding:"4px 0 6px 14px",lineHeight:1.5,borderBottom:"1px solid #f0f0f2"}}>{exp}</div>}
+    {sh&&exp&&<div style={{fontSize:12,color:"#777",padding:"4px 0 6px 14px",lineHeight:1.5,borderBottom:"1px solid #f0f0f2"}}>{exp}</div>}
   </div>);
 }
 function Layer({ title, wt, score, t, children }) {
   return (<div style={{border:"1px solid #e8e8ec",borderRadius:6,padding:"10px 12px",flex:"1 1 240px",minWidth:240,background:"#fff"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-      <span style={{fontSize:10,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase"}}>{title}</span>
-      <span style={{fontSize:9,color:"#bbb"}}>{wt}%</span>
+      <span style={{fontSize:12,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase"}}>{title}</span>
+      <span style={{fontSize:11,color:"#bbb"}}>{wt}%</span>
     </div>{children}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,paddingTop:6,borderTop:"1px solid #eee"}}>
-      <span style={{fontSize:10,color:"#aaa"}}>{t.score}</span>
-      <span style={{fontSize:14,fontWeight:700,color:sColor(score)}}>{score>0?"+":""}{score.toFixed(2)}</span>
+      <span style={{fontSize:12,color:"#aaa"}}>{t.score}</span>
+      <span style={{fontSize:17,fontWeight:700,color:sColor(score)}}>{score>0?"+":""}{score.toFixed(2)}</span>
     </div>
   </div>);
 }
@@ -418,46 +418,46 @@ export default function App() {
   var f = "'IBM Plex Mono','SF Mono','Menlo',monospace";
 
   return (
-    <div style={{"--f":f,fontFamily:f,background:"#fafafa",minHeight:"100vh",padding:"16px 14px",color:"#333",fontSize:12}}>
+    <div style={{"--f":f,fontFamily:f,background:"#fafafa",minHeight:"100vh",padding:"16px 14px",color:"#333",fontSize:14}}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div>
-          <div style={{fontSize:15,fontWeight:700,color:"#111",letterSpacing:0.3}}>{t.title}</div>
-          <div style={{fontSize:9,color:"#aaa",marginTop:2}}>{t.subtitle} &middot; {t.sources}</div>
+          <div style={{fontSize:18,fontWeight:700,color:"#111",letterSpacing:0.3}}>{t.title}</div>
+          <div style={{fontSize:11,color:"#aaa",marginTop:2}}>{t.subtitle} &middot; {t.sources}</div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
-          {!loading&&Object.keys(apiStatus).length>0&&(<div style={{display:"flex",gap:5,fontSize:8,marginRight:4}}>
+          {!loading&&Object.keys(apiStatus).length>0&&(<div style={{display:"flex",gap:5,fontSize:10,marginRight:4}}>
             {[["LL",apiStatus.llama],["CG",apiStatus.coingecko],["HL",apiStatus.hyperliquid],["DN",duneData?"ok":duneLoading?"...":"?"]].map(function(item){return <span key={item[0]} style={{color:item[1]==="ok"?"#0ea371":"#ccc",fontWeight:600}}>{item[0]}</span>;})}
           </div>)}
           <div style={{display:"flex",border:"1px solid #ddd",borderRadius:3,overflow:"hidden"}}>
-            <button onClick={function(){setLang("en");}} style={{background:lang==="en"?"#111":"#fff",color:lang==="en"?"#fff":"#999",border:"none",padding:"2px 6px",fontSize:9,fontFamily:f,cursor:"pointer",fontWeight:600}}>EN</button>
-            <button onClick={function(){setLang("ko");}} style={{background:lang==="ko"?"#111":"#fff",color:lang==="ko"?"#fff":"#999",border:"none",padding:"2px 6px",fontSize:9,fontFamily:f,cursor:"pointer",fontWeight:600}}>{String.fromCharCode(54620)}</button>
+            <button onClick={function(){setLang("en");}} style={{background:lang==="en"?"#111":"#fff",color:lang==="en"?"#fff":"#999",border:"none",padding:"2px 6px",fontSize:11,fontFamily:f,cursor:"pointer",fontWeight:600}}>EN</button>
+            <button onClick={function(){setLang("ko");}} style={{background:lang==="ko"?"#111":"#fff",color:lang==="ko"?"#fff":"#999",border:"none",padding:"2px 6px",fontSize:11,fontFamily:f,cursor:"pointer",fontWeight:600}}>{String.fromCharCode(54620)}</button>
           </div>
-          {ts&&<span style={{fontSize:9,color:"#bbb"}}>{ts.toLocaleTimeString()}</span>}
-          <button onClick={function(){fetchAll();fetchDune();}} disabled={loading} style={{background:"#fff",border:"1px solid #ddd",borderRadius:4,padding:"3px 10px",fontSize:10,fontFamily:f,cursor:loading?"wait":"pointer",color:"#666"}}>{loading?"...":"\u21bb"}</button>
+          {ts&&<span style={{fontSize:11,color:"#bbb"}}>{ts.toLocaleTimeString()}</span>}
+          <button onClick={function(){fetchAll();fetchDune();}} disabled={loading} style={{background:"#fff",border:"1px solid #ddd",borderRadius:4,padding:"3px 10px",fontSize:12,fontFamily:f,cursor:loading?"wait":"pointer",color:"#666"}}>{loading?"...":"\u21bb"}</button>
         </div>
       </div>
 
-      {error&&<div style={{background:"#fff5f5",border:"1px solid #fdd",borderRadius:6,padding:10,marginBottom:12,fontSize:11,color:"#c44"}}>{error}</div>}
+      {error&&<div style={{background:"#fff5f5",border:"1px solid #fdd",borderRadius:6,padding:10,marginBottom:12,fontSize:13,color:"#c44"}}>{error}</div>}
 
-      {loading?<div style={{textAlign:"center",padding:60,color:"#bbb",fontSize:11}}>{t.loading}</div>:!m?<div style={{textAlign:"center",padding:40,color:"#999",fontSize:11}}>{t.no_data}</div>:(<>
+      {loading?<div style={{textAlign:"center",padding:60,color:"#bbb",fontSize:13}}>{t.loading}</div>:!m?<div style={{textAlign:"center",padding:40,color:"#999",fontSize:13}}>{t.no_data}</div>:(<>
 
         {/* REGIME */}
         {regime&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:8,padding:"14px 16px",marginBottom:12,display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:130}}>
             <Gauge score={m.comp} size={140} />
-            <div style={{fontSize:11,fontWeight:700,color:regime.color,marginTop:2,letterSpacing:0.5}}>{regime.emoji} {regime.label}</div>
+            <div style={{fontSize:13,fontWeight:700,color:regime.color,marginTop:2,letterSpacing:0.5}}>{regime.emoji} {regime.label}</div>
           </div>
           <div style={{flex:1,minWidth:280}}>
-            <div style={{fontSize:10,color:"#aaa",fontWeight:600,letterSpacing:1,marginBottom:4,textTransform:"uppercase"}}>{t.regime}</div>
-            <div style={{fontSize:12,color:"#333",lineHeight:1.6,marginBottom:8}}>{regime.desc}</div>
-            <div style={{fontSize:11,color:"#555",lineHeight:1.5,marginBottom:8,padding:"6px 10px",background:regime.color+"08",borderLeft:"3px solid "+regime.color,borderRadius:"0 4px 4px 0"}}>
+            <div style={{fontSize:12,color:"#aaa",fontWeight:600,letterSpacing:1,marginBottom:4,textTransform:"uppercase"}}>{t.regime}</div>
+            <div style={{fontSize:14,color:"#333",lineHeight:1.6,marginBottom:8}}>{regime.desc}</div>
+            <div style={{fontSize:13,color:"#555",lineHeight:1.5,marginBottom:8,padding:"6px 10px",background:regime.color+"08",borderLeft:"3px solid "+regime.color,borderRadius:"0 4px 4px 0"}}>
               <b style={{color:regime.color}}>{t.action}:</b> {regime.act}
             </div>
-            {signals.length>0&&(<div style={{fontSize:10,color:"#888",lineHeight:1.6}}>
+            {signals.length>0&&(<div style={{fontSize:12,color:"#888",lineHeight:1.6}}>
               <b style={{color:"#999"}}>{t.signals}:</b> {signals.map(function(s,i){return <span key={i} style={{display:"inline-block",marginRight:10}}>&bull; {s}</span>;})}
             </div>)}
-            <div style={{display:"flex",gap:14,marginTop:8,fontSize:10,color:"#888"}}>
+            <div style={{display:"flex",gap:14,marginTop:8,fontSize:12,color:"#888"}}>
               {[[t.cost_title,m.l1],[t.cap_title,m.l2],[t.risk_title,m.l3]].map(function(item){return <span key={item[0]}>{item[0]}: <b style={{color:sColor(item[1])}}>{item[1]>0?"+":""}{item[1].toFixed(2)}</b></span>;})}
             </div>
           </div>
@@ -469,7 +469,7 @@ export default function App() {
         {/* BORROW CHART */}
         {duneData&&duneData.length>3&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:8,padding:"12px 16px",marginBottom:12}}>
           <BorrowChart data={duneData} period={chartPeriod} setPeriod={setChartPeriod} t={t} />
-          {duneMetrics&&(<div style={{display:"flex",gap:16,marginTop:6,fontSize:10,color:"#888",flexWrap:"wrap",borderTop:"1px solid #f0f0f2",paddingTop:6}}>
+          {duneMetrics&&(<div style={{display:"flex",gap:16,marginTop:6,fontSize:12,color:"#888",flexWrap:"wrap",borderTop:"1px solid #f0f0f2",paddingTop:6}}>
             <span>{t.chart_7d}: <b>${fmt(duneMetrics.avgB7)}/day</b></span>
             <span>{t.chart_br}: <b style={{color:sColor(m.netFlowS)}}>{duneMetrics.brRatio.toFixed(2)}x</b></span>
             <span>{t.chart_wow}: <b style={{color:sColor(m.volMomS)}}>{duneMetrics.volChange>0?"+":""}{duneMetrics.volChange.toFixed(1)}%</b></span>
@@ -500,17 +500,17 @@ export default function App() {
         </div>
 
         {/* Scale */}
-        <div style={{display:"flex",gap:2,marginBottom:10,alignItems:"center",fontSize:9,color:"#aaa",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:2,marginBottom:10,alignItems:"center",fontSize:11,color:"#aaa",flexWrap:"wrap"}}>
           {[[-3,"FROZEN"],[-2,"COLD"],[-1,"COOL"],[0,"NEUT"],[1,"WARM"],[2,"HOT"],[3,"EXTR"]].map(function(item){return <span key={item[0]} style={{display:"flex",alignItems:"center",gap:2,marginRight:6}}><span style={{width:6,height:6,borderRadius:1,background:sColor(item[0]),display:"inline-block"}} /><span style={{color:sColor(item[0]),fontWeight:600}}>{item[0]>0?"+":""}{item[0]}</span><span>{item[1]}</span></span>;})}
         </div>
 
         {/* Pool Data */}
         <div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:6,overflow:"hidden",marginBottom:8}}>
-          <div onClick={function(){setShowRaw(!showRaw);}} style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",fontSize:10,color:"#999",userSelect:"none"}}>
+          <div onClick={function(){setShowRaw(!showRaw);}} style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",fontSize:12,color:"#999",userSelect:"none"}}>
             <span>{t.pool_data} &middot; {pools.length} {t.pools}</span><span>{showRaw?"\u25b2":"\u25bc"}</span>
           </div>
           {showRaw&&(<div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
               <thead><tr style={{color:"#aaa",borderBottom:"1px solid #eee",textAlign:"left"}}>
                 {[t.protocol,t.asset,t.chain,t.borrow_pct,t.util_pct,t.borrows,t.supply].map(function(h){return <th key={h} style={{padding:"5px 8px",fontWeight:500}}>{h}</th>;})}
               </tr></thead>
@@ -526,15 +526,15 @@ export default function App() {
           </div>)}
         </div>
 
-        <div style={{fontSize:8.5,color:"#bbb",lineHeight:1.8}}>
+        <div style={{fontSize:10,color:"#bbb",lineHeight:1.8}}>
           <b style={{color:"#999"}}>{t.coverage}:</b> {t.coverage_desc}<br />
           <b style={{color:"#999"}}>{t.methodology}:</b> Cost(40%): borrow rate + perp funding | Capacity(35%): util + borrows + borrows/BTC mcap + vol momentum | Risk(25%): HL OI + concentration + funding div + net flow | Cron: daily 06:00 UTC
         </div>
-        <div style={{marginTop:8,fontSize:10}}>
+        <div style={{marginTop:8,fontSize:12}}>
           <a href="https://dune.com/ozark/onchain-leverage-index" target="_blank" rel="noopener noreferrer" style={{color:"#7c8cf5",textDecoration:"none",fontWeight:600}}>
             Dune Dashboard &rarr;
           </a>
-          <span style={{color:"#ccc",marginLeft:8,fontSize:9}}>{lang==="ko"?"Dune\uC5D0\uC11C \uC9C1\uC811 \uCFFC\uB9AC \uC2E4\uD589 \uBC0F \uB370\uC774\uD130 \uD655\uC778":"Run queries and explore raw data on Dune"}</span>
+          <span style={{color:"#ccc",marginLeft:8,fontSize:11}}>{lang==="ko"?"Dune\uC5D0\uC11C \uC9C1\uC811 \uCFFC\uB9AC \uC2E4\uD589 \uBC0F \uB370\uC774\uD130 \uD655\uC778":"Run queries and explore raw data on Dune"}</span>
         </div>
       </>)}
     </div>
