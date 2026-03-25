@@ -264,53 +264,71 @@ function Gauge({ score, size }) {
   </svg>);
 }
 
-// ── Heat Score Bar Chart (daily bars, 0-100) ──
-function HeatBars({ heatData, period, setPeriod, t }) {
+// ── Volume Momentum Bar Chart (7d vs 30d, bars from zero) ──
+function MomentumBars({ duneData, period, setPeriod, t }) {
   var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
   var _cw = useContainerWidth(), containerRef = _cw[0], W = _cw[1];
-  if (!heatData || heatData.length < 10) return <div ref={containerRef}></div>;
+  if (!duneData || duneData.length < 35) return <div ref={containerRef}></div>;
+  // Compute momentum: (7d avg / 30d avg - 1) * 100
+  var momData = [];
+  for (var i = 29; i < duneData.length; i++) {
+    var s7 = 0, s30 = 0;
+    for (var j = Math.max(0, i - 6); j <= i; j++) s7 += duneData[j].borrow;
+    for (var j = i - 29; j <= i; j++) s30 += duneData[j].borrow;
+    var avg7 = s7 / Math.min(7, i + 1), avg30 = s30 / 30;
+    var mom = avg30 > 0 ? (avg7 / avg30 - 1) * 100 : 0;
+    var s7r = 0; for (var j = Math.max(0, i - 6); j <= i; j++) s7r += duneData[j].repay;
+    var br = s7r > 0 ? s7 / s7r : 1;
+    momData.push({ dt: duneData[i].dt, mom: mom, borrow: duneData[i].borrow, br: br, avg7: avg7 });
+  }
   var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
-  var filtered = period >= 9999 ? heatData : heatData.filter(function(d) { return new Date(d.dt) >= cutoff; });
-  if (filtered.length < 5) filtered = heatData;
-  var H = 140, pad = { t: 6, r: 14, b: 28, l: 34 };
+  var filtered = period >= 9999 ? momData : momData.filter(function(d) { return new Date(d.dt) >= cutoff; });
+  if (filtered.length < 5) filtered = momData;
+  var H = 140, pad = { t: 6, r: 14, b: 28, l: 40 };
   var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+  var maxAbs = 0;
+  for (var i = 0; i < filtered.length; i++) { var a = Math.abs(filtered[i].mom); if (a > maxAbs) maxAbs = a; }
+  maxAbs = Math.max(maxAbs, 10); // minimum scale
   var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
   var hovInfo = filtered[activeIdx];
-  var hovScore100 = Math.round((hovInfo.score + 3) / 6 * 100);
-  var barW = Math.max(1, cW / filtered.length - 0.5);
+  var barW = Math.max(1, cW / filtered.length - 0.3);
+  var zeroY = pad.t + cH / 2;
   var bars = [];
   for (var i = 0; i < filtered.length; i++) {
     var x = pad.l + (i / filtered.length) * cW;
-    var s100 = (filtered[i].score + 3) / 6 * 100;
-    var barH = (s100 / 100) * cH;
-    bars.push(<rect key={i} x={x} y={pad.t + cH - barH} width={barW} height={barH || 0.5} fill={sColor(filtered[i].score)} opacity={activeIdx === i ? 1 : 0.6} rx={0.5} />);
+    var m = filtered[i].mom;
+    var barH = (Math.abs(m) / maxAbs) * (cH / 2);
+    var y = m >= 0 ? zeroY - barH : zeroY;
+    var color = m >= 0 ? "#0ea371" : "#d4522a";
+    bars.push(<rect key={i} x={x} y={y} width={barW} height={barH || 0.3} fill={color} opacity={activeIdx === i ? 0.9 : 0.5} rx={0.3} />);
   }
   var crossX = pad.l + (activeIdx / filtered.length) * cW + barW / 2;
-  // Date labels
   var dateLabels = []; var step = Math.max(1, Math.floor(filtered.length / 8));
   for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; dateLabels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#bbb" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>); }
-  // Y labels
-  var yLabels = [0, 50, 100].map(function(v) { var y = pad.t + cH - (v / 100) * cH; return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.3} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#ddd" style={{ fontSize: 8 }}>{v}</text></g>; });
+  var yTicks = [-maxAbs, -maxAbs/2, 0, maxAbs/2, maxAbs].map(function(v) {
+    var y = zeroY - (v / maxAbs) * (cH / 2);
+    return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke={v === 0 ? "#ddd" : "#f4f4f6"} strokeWidth={v === 0 ? 0.5 : 0.3} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#ccc" style={{ fontSize: 8 }}>{v > 0 ? "+" : ""}{Math.round(v)}%</text></g>;
+  });
   var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.floor((mouseX - pad.l) / cW * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
-  var regimeLabel = hovScore100 >= 83 ? "EXTREME" : hovScore100 >= 67 ? "LEVERAGING" : hovScore100 >= 55 ? "WARMING" : hovScore100 >= 45 ? "NEUTRAL" : hovScore100 >= 33 ? "COOLING" : "DELEVERAGED";
   return (<div ref={containerRef} style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.metric_mom} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
       <div style={{ display: "flex", gap: 2 }}>{[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:11,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
     </div>
-    <div style={{ fontSize: 11, marginBottom: 4, padding: "4px 8px", background: sColor(hovInfo.score) + "0d", borderRadius: 4, display: "inline-flex", gap: 12, minHeight: 22, alignItems: "center", flexWrap: "wrap" }}>
+    <div style={{ fontSize: 11, marginBottom: 4, padding: "4px 8px", background: "#f8f8fa", borderRadius: 4, display: "inline-flex", gap: 12, minHeight: 22, alignItems: "center", flexWrap: "wrap" }}>
       <b style={{ color: "#444" }}>{hovInfo.dt.split(" ")[0]}</b>
-      <span style={{ color: sColor(hovInfo.score), fontWeight: 700, fontSize: 14 }}>{hovScore100}</span>
-      <span style={{ color: sColor(hovInfo.score), fontWeight: 600, fontSize: 10, padding: "1px 5px", background: sColor(hovInfo.score) + "15", borderRadius: 3 }}>{regimeLabel}</span>
+      <span style={{ color: hovInfo.mom >= 0 ? "#0ea371" : "#d4522a", fontWeight: 700 }}>{hovInfo.mom > 0 ? "+" : ""}{hovInfo.mom.toFixed(1)}%</span>
+      <span style={{ color: "#999", fontSize: 10 }}>7d avg: ${fmt(hovInfo.avg7)}</span>
       <span style={{ color: "#999", fontSize: 10 }}>Vol: ${fmt(hovInfo.borrow)}</span>
-      <span style={{ color: "#999", fontSize: 10 }}>B/R: {hovInfo.brRatio.toFixed(2)}x</span>
+      <span style={{ color: "#999", fontSize: 10 }}>B/R: {hovInfo.br.toFixed(2)}x</span>
     </div>
     <svg width={W} height={H} style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
-      {yLabels}{bars}
+      {yTicks}{bars}
       <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t + cH} stroke="#bbb" strokeWidth={0.5} strokeDasharray="2,2" />
       {dateLabels}
       <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
     </svg>
+    <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>{t.metric_mom_desc}</div>
   </div>);
 }
 
@@ -876,9 +894,9 @@ export default function App() {
         <RegimeMethodology t={t} />
 
         {/* HEAT TIMELINE */}
-        <HeatBars heatData={heatData} period={heatPeriod} setPeriod={setHeatPeriod} t={t} />
         <HeatTimeline heatData={heatData} period={heatPeriod} setPeriod={setHeatPeriod} t={t} />
         <HeatTrend heatData={heatData} period={trendPeriod} setPeriod={setTrendPeriod} t={t} />
+        <MomentumBars duneData={duneData} period={heatPeriod} setPeriod={setHeatPeriod} t={t} />
 
         {/* BORROW CHART */}
         {duneData&&duneData.length>3&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:8,padding:"12px 16px",marginBottom:12}}>
