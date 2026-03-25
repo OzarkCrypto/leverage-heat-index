@@ -82,6 +82,13 @@ var T = { en: {
   metric_cumflow: "Cumulative Net Leverage Flow",
   metric_cumflow_desc: "Running sum of (borrow - repay) since 2021. Rising = leverage accumulating in the system.",
   metrics_note: "Borrow rate, utilization, HL OI: real-time only (no historical API). Daily snapshots planned.",
+  metrics_api_title: "Historical Metrics (DeFiLlama + CoinGecko + Hyperliquid)",
+  metric_rate: "Avg Borrow APY (weighted)", metric_rate_desc: "TVL-weighted average stablecoin borrow rate across top lending pools. From DeFiLlama historical data.",
+  metric_util: "Pool Utilization (weighted)", metric_util_desc: "Total borrows / total supply across tracked pools. Above 85% approaches kink-point rate spikes.",
+  metric_tborrow: "Total Stablecoin Borrows", metric_tborrow_desc: "Sum of all stablecoin borrow outstanding across Aave, Compound, Morpho, Spark.",
+  metric_bmcap: "Borrows / BTC Market Cap (%)", metric_bmcap_desc: "Stablecoin borrows as % of BTC market cap. Measures leverage density vs market size. CoinGecko BTC data (365d).",
+  metric_btcfund: "BTC Funding Rate (ann)", metric_btcfund_desc: "BTC perpetual funding rate on Hyperliquid, annualized. Positive = longs pay shorts. 90d history.",
+  metric_ethfund: "ETH Funding Rate (ann)", metric_ethfund_desc: "ETH perpetual funding rate on Hyperliquid, annualized. 90d history.",
 }, ko: {
   title: "\uB808\uBC84\uB9AC\uC9C0 \uD788\uD2B8 \uC778\uB371\uC2A4", subtitle: "\uC628\uCCB4\uC778 \uB808\uBC84\uB9AC\uC9C0 \uC218\uC694/\uACF5\uAE09 \uB808\uC9D0 \uBAA8\uB2C8\uD130",
   sources: "DeFiLlama \u00b7 CoinGecko \u00b7 Hyperliquid \u00b7 Dune",
@@ -144,6 +151,13 @@ var T = { en: {
   metric_cumflow: "\uB204\uC801 \uC21C \uB808\uBC84\uB9AC\uC9C0 \uD750\uB984",
   metric_cumflow_desc: "2021\uB144\uBD80\uD130 (\uB300\uCD9C - \uC0C1\uD658) \uB204\uC801\uD569. \uC0C1\uC2B9 = \uC2DC\uC2A4\uD15C\uC5D0 \uB808\uBC84\uB9AC\uC9C0 \uCD95\uC801.",
   metrics_note: "\uB300\uCD9C \uAE08\uB9AC, \uD65C\uC6A9\uB960, HL OI: \uC2E4\uC2DC\uAC04 \uC804\uC6A9 (\uD788\uC2A4\uD1A0\uB9AC\uCEEC API \uC5C6\uC74C). \uC77C\uC77C \uC2A4\uB0C5\uC0F7 \uCD94\uAC00 \uC608\uC815.",
+  metrics_api_title: "\uD788\uC2A4\uD1A0\uB9AC\uCEEC \uC9C0\uD45C (DeFiLlama + CoinGecko + Hyperliquid)",
+  metric_rate: "\uD3C9\uADE0 \uB300\uCD9C \uAE08\uB9AC (\uAC00\uC911)", metric_rate_desc: "\uC0C1\uC704 \uB80C\uB529 \uD480\uC758 TVL \uAC00\uC911\uD3C9\uADE0 \uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C \uAE08\uB9AC. DeFiLlama \uD788\uC2A4\uD1A0\uB9AC\uCEEC \uB370\uC774\uD130.",
+  metric_util: "\uD480 \uD65C\uC6A9\uB960 (\uAC00\uC911)", metric_util_desc: "\uCD94\uC801 \uD480 \uC804\uCCB4 \uB300\uCD9C/\uACF5\uAE09 \uBE44\uC728. 85% \uC774\uC0C1\uC774\uBA74 kink-point \uAE08\uB9AC \uAE09\uB4F1.",
+  metric_tborrow: "\uC2A4\uD14C\uC774\uBE14 \uCD1D \uB300\uCD9C \uC794\uC561", metric_tborrow_desc: "Aave, Compound, Morpho, Spark \uC804\uCCB4 \uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C \uC794\uC561 \uD569\uACC4.",
+  metric_bmcap: "\uB300\uCD9C/BTC \uC2DC\uCD1D (%)", metric_bmcap_desc: "\uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C\uC758 BTC \uC2DC\uCD1D \uB300\uBE44 \uBE44\uC728. \uC2DC\uC7A5 \uADDC\uBAA8 \uB300\uBE44 \uB808\uBC84\uB9AC\uC9C0 \uBC00\uB3C4. CoinGecko BTC \uB370\uC774\uD130 (365\uC77C).",
+  metric_btcfund: "BTC \uD380\uB529\uB808\uC774\uD2B8 (\uC5F0\uD658\uC0B0)", metric_btcfund_desc: "Hyperliquid BTC \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8(\uC5F0\uD658\uC0B0). \uC591\uC218=\uB871\u2192\uC219. 90\uC77C \uD788\uC2A4\uD1A0\uB9AC.",
+  metric_ethfund: "ETH \uD380\uB529\uB808\uC774\uD2B8 (\uC5F0\uD658\uC0B0)", metric_ethfund_desc: "Hyperliquid ETH \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8(\uC5F0\uD658\uC0B0). 90\uC77C \uD788\uC2A4\uD1A0\uB9AC.",
 }};
 
 function lerp(a, b, t) { return a + (b - a) * Math.min(1, Math.max(0, t)); }
@@ -399,15 +413,31 @@ function MiniChart({ data, period, label, desc, color, baselineY, formatVal, t }
   </div>);
 }
 
-function MetricsExplorer({ duneData, period, setPeriod, t }) {
+function MetricsExplorer({ duneData, historyData, period, setPeriod, t }) {
   var derived = useMemo(function() { return computeDerivedMetrics(duneData); }, [duneData]);
-  if (!derived) return null;
+  // Transform historyData into MiniChart format
+  var apiCharts = useMemo(function() {
+    if (!historyData || historyData.length < 5) return null;
+    var rate = [], util = [], tborrow = [], bmcap = [], btcf = [], ethf = [];
+    for (var i = 0; i < historyData.length; i++) {
+      var h = historyData[i];
+      if (h.borrowRate != null) rate.push({ dt: h.dt + " 00:00:00.000 UTC", val: h.borrowRate });
+      if (h.utilization != null) util.push({ dt: h.dt + " 00:00:00.000 UTC", val: h.utilization });
+      if (h.totalBorrow != null) tborrow.push({ dt: h.dt + " 00:00:00.000 UTC", val: h.totalBorrow });
+      if (h.borrowMcapRatio != null) bmcap.push({ dt: h.dt + " 00:00:00.000 UTC", val: h.borrowMcapRatio });
+      if (h.btcFunding != null) btcf.push({ dt: h.dt + " 00:00:00.000 UTC", val: h.btcFunding });
+      if (h.ethFunding != null) ethf.push({ dt: h.dt + " 00:00:00.000 UTC", val: h.ethFunding });
+    }
+    return { rate: rate, util: util, tborrow: tborrow, bmcap: bmcap, btcf: btcf, ethf: ethf };
+  }, [historyData]);
+  if (!derived && !apiCharts) return null;
   var fmtRatio = function(v) { return v.toFixed(2) + "x"; };
   var fmtPct = function(v) { return (v > 0 ? "+" : "") + v.toFixed(1) + "%"; };
+  var fmtPctPlain = function(v) { return v.toFixed(2) + "%"; };
   var fmtDollar = function(v) { return "$" + fmt(v); };
   return (<div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.metrics_title}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{apiCharts ? t.metrics_api_title : t.metrics_title}</span>
       <div style={{ display: "flex", gap: 2 }}>
         {[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) {
           var active = p.d === period;
@@ -415,10 +445,18 @@ function MetricsExplorer({ duneData, period, setPeriod, t }) {
         })}
       </div>
     </div>
-    <MiniChart data={derived.br} period={period} label={t.metric_br} desc={t.metric_br_desc} color="#7c8cf5" baselineY={1.0} formatVal={fmtRatio} t={t} />
-    <MiniChart data={derived.mom} period={period} label={t.metric_mom} desc={t.metric_mom_desc} color="#c47a20" baselineY={0} formatVal={fmtPct} t={t} />
-    <MiniChart data={derived.cumflow} period={period} label={t.metric_cumflow} desc={t.metric_cumflow_desc} color="#0ea371" baselineY={0} formatVal={fmtDollar} t={t} />
-    <div style={{ fontSize: 10, color: "#bbb", marginTop: 6, padding: "6px 0", borderTop: "1px solid #f0f0f2" }}>{t.metrics_note}</div>
+    {apiCharts && apiCharts.rate.length > 5 && <MiniChart data={apiCharts.rate} period={period} label={t.metric_rate} desc={t.metric_rate_desc} color="#d4522a" baselineY={null} formatVal={fmtPctPlain} t={t} />}
+    {apiCharts && apiCharts.util.length > 5 && <MiniChart data={apiCharts.util} period={period} label={t.metric_util} desc={t.metric_util_desc} color="#c47a20" baselineY={85} formatVal={fmtPctPlain} t={t} />}
+    {apiCharts && apiCharts.tborrow.length > 5 && <MiniChart data={apiCharts.tborrow} period={period} label={t.metric_tborrow} desc={t.metric_tborrow_desc} color="#7c8cf5" baselineY={null} formatVal={fmtDollar} t={t} />}
+    {apiCharts && apiCharts.bmcap.length > 5 && <MiniChart data={apiCharts.bmcap} period={period} label={t.metric_bmcap} desc={t.metric_bmcap_desc} color="#0ea371" baselineY={null} formatVal={fmtPctPlain} t={t} />}
+    {apiCharts && apiCharts.btcf.length > 5 && <MiniChart data={apiCharts.btcf} period={period} label={t.metric_btcfund} desc={t.metric_btcfund_desc} color="#d4522a" baselineY={0} formatVal={fmtPctPlain} t={t} />}
+    {apiCharts && apiCharts.ethf.length > 5 && <MiniChart data={apiCharts.ethf} period={period} label={t.metric_ethfund} desc={t.metric_ethfund_desc} color="#7c8cf5" baselineY={0} formatVal={fmtPctPlain} t={t} />}
+    {derived && <>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#bbb", marginTop: 10, marginBottom: 4, paddingTop: 8, borderTop: "1px solid #f0f0f2" }}>Dune On-chain</div>
+      <MiniChart data={derived.br} period={period} label={t.metric_br} desc={t.metric_br_desc} color="#7c8cf5" baselineY={1.0} formatVal={fmtRatio} t={t} />
+      <MiniChart data={derived.mom} period={period} label={t.metric_mom} desc={t.metric_mom_desc} color="#c47a20" baselineY={0} formatVal={fmtPct} t={t} />
+      <MiniChart data={derived.cumflow} period={period} label={t.metric_cumflow} desc={t.metric_cumflow_desc} color="#0ea371" baselineY={0} formatVal={fmtDollar} t={t} />
+    </>}
   </div>);
 }
 
@@ -466,6 +504,7 @@ export default function App() {
   var _cp = useState(9999), chartPeriod = _cp[0], setChartPeriod = _cp[1];
   var _hp = useState(9999), heatPeriod = _hp[0], setHeatPeriod = _hp[1];
   var _mp = useState(9999), metricsPeriod = _mp[0], setMetricsPeriod = _mp[1];
+  var _hist = useState(null), historyData = _hist[0], setHistoryData = _hist[1];
 
   var fetchAll = useCallback(function() {
     setLoading(true); setError(null); var status = {};
@@ -492,7 +531,12 @@ export default function App() {
       setDuneLoading(false);
     }).catch(function(){setDuneLoading(false);});
   },[]);
-  useEffect(function(){fetchAll();fetchDune();},[fetchAll,fetchDune]);
+  var fetchHistory = useCallback(function() {
+    fetch("/api/history").then(function(r){return r.json();}).then(function(data){
+      if(data.history && data.history.length > 0) setHistoryData(data.history);
+    }).catch(function(){});
+  },[]);
+  useEffect(function(){fetchAll();fetchDune();fetchHistory();},[fetchAll,fetchDune,fetchHistory]);
 
   var heatData = useMemo(function() { return computeHeatScores(duneData); }, [duneData]);
 
@@ -593,7 +637,7 @@ export default function App() {
         </div>)}
 
         {/* DERIVED METRICS */}
-        <MetricsExplorer duneData={duneData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
+        <MetricsExplorer duneData={duneData} historyData={historyData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
 
         {/* 3 LAYERS */}
         <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
