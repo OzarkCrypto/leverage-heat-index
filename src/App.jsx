@@ -81,6 +81,7 @@ var T = { en: {
   metric_mom_desc: "7-day avg borrow volume relative to 30-day avg, expressed as %. Positive = accelerating demand.",
   metric_cumflow: "Cumulative Net Leverage Flow",
   metric_cumflow_desc: "Running sum of (borrow - repay) since 2021. Rising = leverage accumulating in the system.",
+  metric_heatscore: "Heat Score (0\u2013100)", metric_heatscore_desc: "Composite leverage heat score. Combines 365d rolling percentile (45%), volume momentum (25%), and borrow/repay ratio (30%). Tracks market overheating in real-time.",
   metrics_note: "Borrow rate, utilization, HL OI: real-time only (no historical API). Daily snapshots planned.",
   metrics_api_title: "Historical Metrics (DeFiLlama + CoinGecko + Hyperliquid)",
   metric_rate: "Avg Borrow APY (weighted)", metric_rate_desc: "TVL-weighted average stablecoin borrow rate across top lending pools. From DeFiLlama historical data.",
@@ -155,6 +156,7 @@ var T = { en: {
   metric_mom_desc: "7\uC77C \uD3C9\uADE0 \uB300\uCD9C\uB7C9\uC758 30\uC77C \uD3C9\uADE0 \uB300\uBE44 % \uBCC0\uD654. \uC591\uC218 = \uC218\uC694 \uAC00\uC18D.",
   metric_cumflow: "\uB204\uC801 \uC21C \uB808\uBC84\uB9AC\uC9C0 \uD750\uB984",
   metric_cumflow_desc: "2021\uB144\uBD80\uD130 (\uB300\uCD9C - \uC0C1\uD658) \uB204\uC801\uD569. \uC0C1\uC2B9 = \uC2DC\uC2A4\uD15C\uC5D0 \uB808\uBC84\uB9AC\uC9C0 \uCD95\uC801.",
+  metric_heatscore: "\uD788\uD2B8 \uC2A4\uCF54\uC5B4 (0\u2013100)", metric_heatscore_desc: "\uBCF5\uD569 \uB808\uBC84\uB9AC\uC9C0 \uACFC\uC5F4 \uC9C0\uC218. 365\uC77C \uB864\uB9C1 \uD37C\uC13C\uD0C0\uC77C(45%) + \uBCFC\uB968 \uBAA8\uBA58\uD140(25%) + \uB300\uCD9C/\uC0C1\uD658 \uBE44\uC728(30%) \uACB0\uD569. \uC2DC\uC7A5 \uACFC\uC5F4 \uC2E4\uC2DC\uAC04 \uCD94\uC801.",
   metrics_note: "\uB300\uCD9C \uAE08\uB9AC, \uD65C\uC6A9\uB960, HL OI: \uC2E4\uC2DC\uAC04 \uC804\uC6A9 (\uD788\uC2A4\uD1A0\uB9AC\uCEEC API \uC5C6\uC74C). \uC77C\uC77C \uC2A4\uB0C5\uC0F7 \uCD94\uAC00 \uC608\uC815.",
   metrics_api_title: "\uD788\uC2A4\uD1A0\uB9AC\uCEEC \uC9C0\uD45C (DeFiLlama + CoinGecko + Hyperliquid)",
   metric_rate: "\uD3C9\uADE0 \uB300\uCD9C \uAE08\uB9AC (\uAC00\uC911)", metric_rate_desc: "\uC0C1\uC704 \uB80C\uB529 \uD480\uC758 TVL \uAC00\uC911\uD3C9\uADE0 \uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C \uAE08\uB9AC. DeFiLlama \uD788\uC2A4\uD1A0\uB9AC\uCEEC \uB370\uC774\uD130.",
@@ -171,7 +173,7 @@ var T = { en: {
 }};
 
 function lerp(a, b, t) { return a + (b - a) * Math.min(1, Math.max(0, t)); }
-function scoreLinear(v, cold, neut, hot, ext) { if (v <= cold) return -2; if (v <= neut) return lerp(-2, 0, (v - cold) / (neut - cold)); if (v <= hot) return lerp(0, 2, (v - neut) / (hot - neut)); if (v <= ext) return lerp(2, 3, (v - hot) / (ext - hot)); return 3; }
+function scoreLinear(v, cold, neut, hot, ext) { var subCold = cold - (neut - cold); if (v <= subCold) return -3; if (v <= cold) return lerp(-3, -2, (v - subCold) / (cold - subCold)); if (v <= neut) return lerp(-2, 0, (v - cold) / (neut - cold)); if (v <= hot) return lerp(0, 2, (v - neut) / (hot - neut)); if (v <= ext) return lerp(2, 3, (v - hot) / (ext - hot)); return 3; }
 function sColor(s) { if (s <= -1.5) return "#0ea371"; if (s <= -0.5) return "#4da87a"; if (s <= 0.5) return "#888"; if (s <= 1.5) return "#c47a20"; if (s <= 2.2) return "#d4522a"; return "#c41830"; }
 function sLabel(s) { if (s <= -2) return "FROZEN"; if (s <= -1) return "COLD"; if (s <= -0.3) return "COOL"; if (s <= 0.3) return "NEUTRAL"; if (s <= 1) return "WARM"; if (s <= 2) return "HOT"; return "EXTREME"; }
 function fmt(n, d) { if (d === undefined) d = 1; if (n == null || isNaN(n)) return "\u2014"; if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(d) + "B"; if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(d) + "M"; if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(d) + "K"; return n.toFixed(d); }
@@ -445,8 +447,13 @@ function MiniChart({ data, period, label, desc, color, baselineY, formatVal, t }
   </div>);
 }
 
-function MetricsExplorer({ duneData, historyData, period, setPeriod, t }) {
+function MetricsExplorer({ duneData, historyData, heatData, period, setPeriod, t }) {
   var derived = useMemo(function() { return computeDerivedMetrics(duneData); }, [duneData]);
+  // Transform heatData into 0-100 MiniChart format
+  var heatChartData = useMemo(function() {
+    if (!heatData || heatData.length < 10) return null;
+    return heatData.map(function(d) { return { dt: d.dt, val: Math.round((d.score + 3) / 6 * 100) }; });
+  }, [heatData]);
   // Transform historyData into MiniChart format
   var apiCharts = useMemo(function() {
     if (!historyData || historyData.length < 5) return null;
@@ -462,11 +469,12 @@ function MetricsExplorer({ duneData, historyData, period, setPeriod, t }) {
     }
     return { rate: rate, util: util, tborrow: tborrow, bmcap: bmcap, btcf: btcf, ethf: ethf };
   }, [historyData]);
-  if (!derived && !apiCharts) return null;
+  if (!derived && !apiCharts && !heatChartData) return null;
   var fmtRatio = function(v) { return v.toFixed(2) + "x"; };
   var fmtPct = function(v) { return (v > 0 ? "+" : "") + v.toFixed(1) + "%"; };
   var fmtPctPlain = function(v) { return v.toFixed(2) + "%"; };
   var fmtDollar = function(v) { return "$" + fmt(v); };
+  var fmtScore = function(v) { return Math.round(v) + ""; };
   return (<div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{apiCharts ? t.metrics_api_title : t.metrics_title}</span>
@@ -477,6 +485,7 @@ function MetricsExplorer({ duneData, historyData, period, setPeriod, t }) {
         })}
       </div>
     </div>
+    {heatChartData && heatChartData.length > 5 && <MiniChart data={heatChartData} period={period} label={t.metric_heatscore} desc={t.metric_heatscore_desc} color="#c41830" baselineY={50} formatVal={fmtScore} t={t} />}
     {apiCharts && apiCharts.rate.length > 5 && <MiniChart data={apiCharts.rate} period={period} label={t.metric_rate} desc={t.metric_rate_desc} color="#d4522a" baselineY={null} formatVal={fmtPctPlain} t={t} />}
     {apiCharts && apiCharts.util.length > 5 && <MiniChart data={apiCharts.util} period={period} label={t.metric_util} desc={t.metric_util_desc} color="#c47a20" baselineY={85} formatVal={fmtPctPlain} t={t} />}
     {apiCharts && apiCharts.tborrow.length > 5 && <MiniChart data={apiCharts.tborrow} period={period} label={t.metric_tborrow} desc={t.metric_tborrow_desc} color="#7c8cf5" baselineY={null} formatVal={fmtDollar} t={t} />}
@@ -704,7 +713,7 @@ export default function App() {
         </div>)}
 
         {/* DERIVED METRICS */}
-        <MetricsExplorer duneData={duneData} historyData={historyData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
+        <MetricsExplorer duneData={duneData} historyData={historyData} heatData={heatData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
 
         {/* 3 LAYERS */}
         <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
