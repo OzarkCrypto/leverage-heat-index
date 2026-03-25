@@ -6,22 +6,44 @@ export default async function handler(req, res) {
 
   var queryId = '6896576';
   var isCron = req.query.cron === '1';
+  var PAGE_SIZE = 500;
 
   try {
-    // Normal request: serve cached results only (no credits used)
     if (!isCron) {
+      // Normal request: fetch cached results with pagination
+      // Date-only aggregation: ~1900 rows (one per day since 2021-01-01)
+      // Old format (per-project): ~9000 rows — pagination still works, just gets fewer days
+      // CDN caches the aggregated response for 1 hour
       res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=7200');
-      var cachedRes = await fetch(
-        'https://api.dune.com/api/v1/query/' + queryId + '/results?limit=50000',
-        { headers: { 'X-Dune-API-Key': apiKey } }
-      );
-      var cachedData = await cachedRes.json();
-      if (cachedData.result && cachedData.result.rows && cachedData.result.rows.length > 0) {
+
+      var allRows = [];
+      var offset = 0;
+      var maxPages = 5; // 5 × 500 = 2500 rows max (covers full date-only history)
+
+      for (var page = 0; page < maxPages; page++) {
+        var url = 'https://api.dune.com/api/v1/query/' + queryId + '/results?limit=' + PAGE_SIZE + '&offset=' + offset;
+        var pageRes = await fetch(url, { headers: { 'X-Dune-API-Key': apiKey } });
+        var pageData = await pageRes.json();
+
+        // Datapoint limit hit — return whatever we have
+        if (pageData.error) break;
+
+        var rows = (pageData.result && pageData.result.rows) || [];
+        if (rows.length === 0) break;
+
+        allRows = allRows.concat(rows);
+        offset += PAGE_SIZE;
+
+        // Fewer than PAGE_SIZE = last page
+        if (rows.length < PAGE_SIZE) break;
+      }
+
+      if (allRows.length > 0) {
         return res.status(200).json({
-          rows: cachedData.result.rows,
+          rows: allRows,
           cached: true,
-          executed_at: cachedData.execution_ended_at || null,
-          row_count: cachedData.result.rows.length
+          row_count: allRows.length,
+          pages_fetched: page + 1
         });
       }
       return res.status(200).json({ rows: [], cached: true, error: 'no cached results' });
@@ -44,7 +66,7 @@ export default async function handler(req, res) {
     while (attempts < 18) {
       await new Promise(function(r) { setTimeout(r, 3000); });
       var pollRes = await fetch(
-        'https://api.dune.com/api/v1/execution/' + executionId + '/results?limit=50000',
+        'https://api.dune.com/api/v1/execution/' + executionId + '/results?limit=' + PAGE_SIZE,
         { headers: { 'X-Dune-API-Key': apiKey } }
       );
       var pollData = await pollRes.json();
