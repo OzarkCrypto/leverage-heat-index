@@ -777,7 +777,7 @@ export default function App() {
   var fetchAll = useCallback(function() {
     setLoading(true); setError(null); var status = {};
     Promise.allSettled([
-      fetch("https://yields.llama.fi/poolsBorrow").then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}),
+      fetch("/api/pools").then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}),
       fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_market_cap=true").then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}),
       fetch("https://api.hyperliquid.xyz/info",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"metaAndAssetCtxs"})}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}),
     ]).then(function(results) {
@@ -964,11 +964,14 @@ export default function App() {
         <div style={{fontSize:10,color:"#bbb",lineHeight:1.8}}>
           <b style={{color:"#999"}}>{t.coverage}:</b> {t.coverage_desc}
         </div>
-        <div style={{marginTop:8,fontSize:12}}>
-          <a href="https://dune.com/ozark/onchain-leverage-index" target="_blank" rel="noopener noreferrer" style={{color:"#7c8cf5",textDecoration:"none",fontWeight:600}}>
+        <div style={{marginTop:8,fontSize:12,display:"flex",gap:16,flexWrap:"wrap",alignItems:"center"}}>
+          <a href="https://dune.com/cryptobyrde/test" target="_blank" rel="noopener noreferrer" style={{color:"#7c8cf5",textDecoration:"none",fontWeight:600}}>
             Dune Dashboard &rarr;
           </a>
-          <span style={{color:"#ccc",marginLeft:8,fontSize:11}}>{lang==="ko"?"Dune\uC5D0\uC11C \uC9C1\uC811 \uCFFC\uB9AC \uC2E4\uD589 \uBC0F \uB370\uC774\uD130 \uD655\uC778":"Run queries and explore raw data on Dune"}</span>
+          <a href="https://dune.com/ozark/onchain-leverage-index" target="_blank" rel="noopener noreferrer" style={{color:"#999",textDecoration:"none",fontWeight:500,fontSize:11}}>
+            Dashboard 2 &rarr;
+          </a>
+          <span style={{color:"#ccc",fontSize:11}}>{lang==="ko"?"Dune\uC5D0\uC11C \uC9C1\uC811 \uCFFC\uB9AC \uC2E4\uD589 \uBC0F \uB370\uC774\uD130 \uD655\uC778":"Run queries and explore raw data on Dune"}</span>
         </div>
       </>)}
     </div>
