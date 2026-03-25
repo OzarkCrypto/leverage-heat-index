@@ -284,11 +284,12 @@ function MomentumBars({ duneData, period, setPeriod, t }) {
   var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
   var filtered = period >= 9999 ? momData : momData.filter(function(d) { return new Date(d.dt) >= cutoff; });
   if (filtered.length < 5) filtered = momData;
-  var H = 140, pad = { t: 6, r: 14, b: 28, l: 40 };
+  var H = 220, pad = { t: 6, r: 14, b: 28, l: 40 };
   var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
-  var maxAbs = 0;
-  for (var i = 0; i < filtered.length; i++) { var a = Math.abs(filtered[i].mom); if (a > maxAbs) maxAbs = a; }
-  maxAbs = Math.max(maxAbs, 10); // minimum scale
+  // Use 90th percentile for scale so outliers don't crush normal bars
+  var absVals = filtered.map(function(d) { return Math.abs(d.mom); }).sort(function(a,b){return a-b;});
+  var p90 = absVals[Math.floor(absVals.length * 0.9)] || 10;
+  var maxAbs = Math.max(p90 * 1.2, 15);
   var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
   var hovInfo = filtered[activeIdx];
   var barW = Math.max(1, cW / filtered.length - 0.3);
@@ -297,10 +298,10 @@ function MomentumBars({ duneData, period, setPeriod, t }) {
   for (var i = 0; i < filtered.length; i++) {
     var x = pad.l + (i / filtered.length) * cW;
     var m = filtered[i].mom;
-    var barH = (Math.abs(m) / maxAbs) * (cH / 2);
+    var barH = Math.min((Math.abs(m) / maxAbs) * (cH / 2), cH / 2);
     var y = m >= 0 ? zeroY - barH : zeroY;
     var color = m >= 0 ? "#0ea371" : "#d4522a";
-    bars.push(<rect key={i} x={x} y={y} width={barW} height={barH || 0.3} fill={color} opacity={activeIdx === i ? 0.9 : 0.5} rx={0.3} />);
+    bars.push(<rect key={i} x={x} y={y} width={barW} height={barH || 0.5} fill={color} opacity={activeIdx === i ? 1 : 0.65} rx={0.5} />);
   }
   var crossX = pad.l + (activeIdx / filtered.length) * cW + barW / 2;
   var dateLabels = []; var step = Math.max(1, Math.floor(filtered.length / 8));
