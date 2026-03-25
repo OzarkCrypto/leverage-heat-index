@@ -270,42 +270,70 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
   var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
   var filtered = period >= 9999 ? heatData : heatData.filter(function(d) { return new Date(d.dt) >= cutoff; });
   if (filtered.length < 5) filtered = heatData;
-  var H = 160, pad = { t: 10, r: 14, b: 32, l: 40 };
+  var H = 220, pad = { t: 10, r: 14, b: 32, l: 40 };
   var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
   var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
   var hovInfo = filtered[activeIdx];
-  var barW = Math.max(1, cW / filtered.length);
-  var rects = [];
+  var hovScore100 = Math.round((hovInfo.score + 3) / 6 * 100);
+  // Regime zones (y=0 is top, so 100 is at pad.t and 0 is at pad.t+cH)
+  var zones = [
+    { min: 83, max: 100, color: "#c41830", label: "EXTREME" },
+    { min: 67, max: 83, color: "#d4522a", label: "LEVERAGING" },
+    { min: 55, max: 67, color: "#c47a20", label: "WARMING" },
+    { min: 45, max: 55, color: "#888", label: "NEUTRAL" },
+    { min: 33, max: 45, color: "#4da87a", label: "COOLING" },
+    { min: 0, max: 33, color: "#0ea371", label: "DELEVERAGED" }
+  ];
+  var zoneRects = zones.map(function(z) {
+    var y1 = pad.t + cH - (z.max / 100) * cH;
+    var y2 = pad.t + cH - (z.min / 100) * cH;
+    return <g key={z.label}>
+      <rect x={pad.l} y={y1} width={cW} height={y2 - y1} fill={z.color} opacity={0.06} />
+      <text x={pad.l + 4} y={y1 + 10} fill={z.color} opacity={0.5} style={{ fontSize: 8, fontWeight: 600 }}>{z.label}</text>
+    </g>;
+  });
+  // Build line path
+  var pts = [];
   for (var i = 0; i < filtered.length; i++) {
-    var x = pad.l + (i / filtered.length) * cW;
-    var s = filtered[i].score; var baseY = pad.t + cH / 2;
-    var h = (Math.abs(s) / 3) * (cH / 2); var y = s >= 0 ? baseY - h : baseY;
-    rects.push(<rect key={i} x={x} y={y} width={barW} height={h || 0.5} fill={sColor(s)} opacity={activeIdx === i ? 1 : 0.5} />);
+    var x = pad.l + (i / (filtered.length - 1)) * cW;
+    var s100 = (filtered[i].score + 3) / 6 * 100;
+    var y = pad.t + cH - (s100 / 100) * cH;
+    pts.push(x + "," + y);
   }
-  var crossX = pad.l + (activeIdx / filtered.length) * cW + barW / 2;
-  var zeroY = pad.t + cH / 2;
-  var labels = []; var step = Math.max(1, Math.floor(filtered.length / 10));
-  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; labels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 11 }}>{filtered[i].dt.split(" ")[0]}</text>); }
-  var yLabels = [-2, -1, 0, 1, 2].map(function(v) { var y = pad.t + cH / 2 - (v / 3) * (cH / 2); return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.5} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 10 }}>{v > 0 ? "+" : ""}{v}</text></g>; });
-  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.floor((mouseX - pad.l) / cW * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  var linePath = "M " + pts.join(" L ");
+  var areaPath = "M " + pad.l + "," + (pad.t + cH) + " L " + pts.join(" L ") + " L " + (pad.l + cW) + "," + (pad.t + cH) + " Z";
+  // Crosshair
+  var crossX = pad.l + (activeIdx / (filtered.length - 1)) * cW;
+  var crossY = pad.t + cH - (hovScore100 / 100) * cH;
+  // Date labels
+  var dateLabels = []; var step = Math.max(1, Math.floor(filtered.length / 10));
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; dateLabels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#aaa" style={{ fontSize: 10 }}>{filtered[i].dt.split(" ")[0]}</text>); }
+  // Y labels (0, 25, 50, 75, 100)
+  var yLabels = [0, 25, 50, 75, 100].map(function(v) { var y = pad.t + cH - (v / 100) * cH; return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#e0e0e4" strokeWidth={0.3} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#bbb" style={{ fontSize: 10 }}>{v}</text></g>; });
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.round((mouseX - pad.l) / cW * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  var regimeLabel = hovScore100 >= 83 ? "EXTREME" : hovScore100 >= 67 ? "LEVERAGING" : hovScore100 >= 55 ? "WARMING" : hovScore100 >= 45 ? "NEUTRAL" : hovScore100 >= 33 ? "COOLING" : "DELEVERAGED";
   return (<div ref={containerRef} style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
       <div style={{ display: "flex", gap: 2 }}>{[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:11,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
     </div>
-    <div style={{ fontSize: 12, marginBottom: 4, padding: "4px 8px", background: sColor(hovInfo.score) + "10", borderRadius: 4, display: "inline-flex", gap: 12, minHeight: 22 }}>
+    <div style={{ fontSize: 12, marginBottom: 4, padding: "5px 10px", background: sColor(hovInfo.score) + "12", borderRadius: 4, display: "inline-flex", gap: 14, minHeight: 24, alignItems: "center", flexWrap: "wrap" }}>
       <b>{hovInfo.dt.split(" ")[0]}</b>
-      <span style={{ color: sColor(hovInfo.score), fontWeight: 700 }}>{hovInfo.score > 0 ? "+" : ""}{hovInfo.score.toFixed(2)} {sLabel(hovInfo.score)}</span>
-      <span>Vol: ${fmt(hovInfo.borrow)}</span>
-      <span>B/R: {hovInfo.brRatio.toFixed(2)}x</span>
-      {hovInfo.pctile != null && <span>Pctile: {hovInfo.pctile}%</span>}
+      <span style={{ color: sColor(hovInfo.score), fontWeight: 700, fontSize: 14 }}>{hovScore100}</span>
+      <span style={{ color: sColor(hovInfo.score), fontWeight: 600, fontSize: 11 }}>{regimeLabel}</span>
+      <span style={{ color: "#888" }}>Vol: ${fmt(hovInfo.borrow)}</span>
+      <span style={{ color: "#888" }}>B/R: {hovInfo.brRatio.toFixed(2)}x</span>
+      {hovInfo.pctile != null && <span style={{ color: "#888" }}>Pctile: {hovInfo.pctile}%</span>}
     </div>
     <svg width={W} height={H} style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
-      {yLabels}{rects}
+      {zoneRects}{yLabels}
+      <path d={areaPath} fill="url(#heatGrad)" opacity={0.15} />
+      <path d={linePath} stroke={sColor(hovInfo.score)} strokeWidth={1.5} fill="none" />
       <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t + cH} stroke="#999" strokeWidth={0.5} strokeDasharray="2,2" />
-      <line x1={pad.l} y1={zeroY} x2={pad.l + cW} y2={zeroY} stroke="#ccc" strokeWidth={0.5} strokeDasharray="3,3" />
-      {labels}
+      <circle cx={crossX} cy={crossY} r={3.5} fill={sColor(hovInfo.score)} stroke="#fff" strokeWidth={1.5} />
+      {dateLabels}
       <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
+      <defs><linearGradient id="heatGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c41830" /><stop offset="50%" stopColor="#888" /><stop offset="100%" stopColor="#0ea371" /></linearGradient></defs>
     </svg>
     <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>{t.heat_desc}</div>
   </div>);
@@ -447,13 +475,8 @@ function MiniChart({ data, period, label, desc, color, baselineY, formatVal, t }
   </div>);
 }
 
-function MetricsExplorer({ duneData, historyData, heatData, period, setPeriod, t }) {
+function MetricsExplorer({ duneData, historyData, period, setPeriod, t }) {
   var derived = useMemo(function() { return computeDerivedMetrics(duneData); }, [duneData]);
-  // Transform heatData into 0-100 MiniChart format
-  var heatChartData = useMemo(function() {
-    if (!heatData || heatData.length < 10) return null;
-    return heatData.map(function(d) { return { dt: d.dt, val: Math.round((d.score + 3) / 6 * 100) }; });
-  }, [heatData]);
   // Transform historyData into MiniChart format
   var apiCharts = useMemo(function() {
     if (!historyData || historyData.length < 5) return null;
@@ -469,12 +492,11 @@ function MetricsExplorer({ duneData, historyData, heatData, period, setPeriod, t
     }
     return { rate: rate, util: util, tborrow: tborrow, bmcap: bmcap, btcf: btcf, ethf: ethf };
   }, [historyData]);
-  if (!derived && !apiCharts && !heatChartData) return null;
+  if (!derived && !apiCharts) return null;
   var fmtRatio = function(v) { return v.toFixed(2) + "x"; };
   var fmtPct = function(v) { return (v > 0 ? "+" : "") + v.toFixed(1) + "%"; };
   var fmtPctPlain = function(v) { return v.toFixed(2) + "%"; };
   var fmtDollar = function(v) { return "$" + fmt(v); };
-  var fmtScore = function(v) { return Math.round(v) + ""; };
   return (<div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{apiCharts ? t.metrics_api_title : t.metrics_title}</span>
@@ -485,7 +507,6 @@ function MetricsExplorer({ duneData, historyData, heatData, period, setPeriod, t
         })}
       </div>
     </div>
-    {heatChartData && heatChartData.length > 5 && <MiniChart data={heatChartData} period={period} label={t.metric_heatscore} desc={t.metric_heatscore_desc} color="#c41830" baselineY={50} formatVal={fmtScore} t={t} />}
     {apiCharts && apiCharts.rate.length > 5 && <MiniChart data={apiCharts.rate} period={period} label={t.metric_rate} desc={t.metric_rate_desc} color="#d4522a" baselineY={null} formatVal={fmtPctPlain} t={t} />}
     {apiCharts && apiCharts.util.length > 5 && <MiniChart data={apiCharts.util} period={period} label={t.metric_util} desc={t.metric_util_desc} color="#c47a20" baselineY={85} formatVal={fmtPctPlain} t={t} />}
     {apiCharts && apiCharts.tborrow.length > 5 && <MiniChart data={apiCharts.tborrow} period={period} label={t.metric_tborrow} desc={t.metric_tborrow_desc} color="#7c8cf5" baselineY={null} formatVal={fmtDollar} t={t} />}
@@ -713,7 +734,7 @@ export default function App() {
         </div>)}
 
         {/* DERIVED METRICS */}
-        <MetricsExplorer duneData={duneData} historyData={historyData} heatData={heatData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
+        <MetricsExplorer duneData={duneData} historyData={historyData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
 
         {/* 3 LAYERS */}
         <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
