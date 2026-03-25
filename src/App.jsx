@@ -867,10 +867,12 @@ export default function App() {
 
       {error&&<div style={{background:"#fff5f5",border:"1px solid #fdd",borderRadius:6,padding:10,marginBottom:12,fontSize:13,color:"#c44"}}>{error}</div>}
 
-      {loading?<div style={{textAlign:"center",padding:60,color:"#bbb",fontSize:13}}>{t.loading}</div>:!m?<div style={{textAlign:"center",padding:40,color:"#999",fontSize:13}}>{t.no_data}</div>:(<>
+      {loading&&<div style={{textAlign:"center",padding:60,color:"#bbb",fontSize:13}}>{t.loading}</div>}
 
-        {/* REGIME */}
-        {regime&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:8,padding:"14px 16px",marginBottom:12,display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
+      {!loading&&(<>
+
+        {/* REGIME - only when real-time data available */}
+        {m&&regime&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:8,padding:"14px 16px",marginBottom:12,display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:130}}>
             <Gauge score={m.comp} size={140} />
             <div style={{fontSize:13,fontWeight:700,color:regime.color,marginTop:2,letterSpacing:0.5}}>{regime.emoji} {regime.label}</div>
@@ -901,7 +903,7 @@ export default function App() {
         {/* BORROW CHART */}
         {duneData&&duneData.length>3&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:8,padding:"12px 16px",marginBottom:12}}>
           <BorrowChart data={duneData} period={chartPeriod} setPeriod={setChartPeriod} t={t} />
-          {duneMetrics&&(<div style={{display:"flex",gap:16,marginTop:6,fontSize:12,color:"#888",flexWrap:"wrap",borderTop:"1px solid #f0f0f2",paddingTop:6}}>
+          {duneMetrics&&m&&(<div style={{display:"flex",gap:16,marginTop:6,fontSize:12,color:"#888",flexWrap:"wrap",borderTop:"1px solid #f0f0f2",paddingTop:6}}>
             <span>{t.chart_7d}: <b>${fmt(duneMetrics.avgB7)}/day</b></span>
             <span>{t.chart_br}: <b style={{color:sColor(m.netFlowS)}}>{duneMetrics.brRatio.toFixed(2)}x</b></span>
             <span>{t.chart_wow}: <b style={{color:sColor(m.volMomS)}}>{duneMetrics.volChange>0?"+":""}{duneMetrics.volChange.toFixed(1)}%</b></span>
@@ -912,8 +914,8 @@ export default function App() {
         {/* DERIVED METRICS */}
         <MetricsExplorer duneData={duneData} historyData={historyData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
 
-        {/* 3 LAYERS */}
-        <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        {/* 3 LAYERS - only when real-time data available */}
+        {m&&(<div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
           <Layer title={t.cost_title} wt={40} score={m.l1} t={t}>
             <Row label={t.lbl_borrow_rate} val={pct(m.wBR)} score={m.brS} sub={t.sub_protocols} exp={t.exp_borrow_rate} />
             <Row label={t.lbl_btc_fund} val={m.btcFA!=null?pct(m.btcFA):"\u2014"} score={null} sub={t.sub_hl} exp={t.exp_btc_funding} />
@@ -932,15 +934,15 @@ export default function App() {
             <Row label={t.lbl_fund_div} val={pct(m.fDiv,1)} score={m.dS} exp={t.exp_fund_div} />
             {duneMetrics&&<Row label={t.lbl_net_flow} val={duneMetrics.brRatio.toFixed(2)+"x"} score={m.netFlowS} sub={t.sub_dune} exp={t.exp_net_flow} />}
           </Layer>
-        </div>
+        </div>)}
 
         {/* Scale */}
         <div style={{display:"flex",gap:2,marginBottom:10,alignItems:"center",fontSize:11,color:"#aaa",flexWrap:"wrap"}}>
           {[[-3,"FROZEN"],[-2,"COLD"],[-1,"COOL"],[0,"NEUT"],[1,"WARM"],[2,"HOT"],[3,"EXTR"]].map(function(item){return <span key={item[0]} style={{display:"flex",alignItems:"center",gap:2,marginRight:6}}><span style={{width:6,height:6,borderRadius:1,background:sColor(item[0]),display:"inline-block"}} /><span style={{color:sColor(item[0]),fontWeight:600}}>{item[0]>0?"+":""}{item[0]}</span><span>{item[1]}</span></span>;})}
         </div>
 
-        {/* Pool Data */}
-        <div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:6,overflow:"hidden",marginBottom:8}}>
+        {/* Pool Data - only when DeFiLlama data available */}
+        {pools.length>0&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:6,overflow:"hidden",marginBottom:8}}>
           <div onClick={function(){setShowRaw(!showRaw);}} style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",fontSize:12,color:"#999",userSelect:"none"}}>
             <span>{t.pool_data} &middot; {pools.length} {t.pools}</span><span>{showRaw?"\u25b2":"\u25bc"}</span>
           </div>
