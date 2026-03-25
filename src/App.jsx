@@ -25,6 +25,7 @@ var T = { en: {
   sources: "DeFiLlama \u00b7 CoinGecko \u00b7 Hyperliquid \u00b7 Dune",
   regime: "Current Regime", action: "Implication", signals: "Active Signals",
   chart_title: "Stablecoin Borrow Volume", heat_title: "Historical Leverage Heat Score", heat_desc: "Hover over bars to see leverage conditions on any date. Score computed from borrow volume momentum + trend + borrow/repay ratio.",
+  trend_title: "Leverage Regime Trend (30d MA)", trend_desc: "30-day moving average of daily heat scores. Filters out daily noise to show clear regime transitions and sustained trend shifts.",
   chart_7d: "7d avg", chart_br: "B/R Ratio", chart_wow: "WoW", chart_net: "Net 7d",
   borrow_vol: "Borrow Vol (7d MA)", borrow_vol_exp: "Daily new stablecoin borrow amount, smoothed with 7-day moving average",
   net_inflow: "Net Inflow", net_inflow_exp: "Days where new borrows > repayments = leverage expanding",
@@ -100,6 +101,7 @@ var T = { en: {
   sources: "DeFiLlama \u00b7 CoinGecko \u00b7 Hyperliquid \u00b7 Dune",
   regime: "\uD604\uC7AC \uB808\uC9D0", action: "\uC2DC\uC0AC\uC810", signals: "\uD65C\uC131 \uC2E0\uD638",
   chart_title: "\uC2A4\uD14C\uC774\uBE14\uCF54\uC778 \uB300\uCD9C \uBCFC\uB968", heat_title: "\uD788\uC2A4\uD1A0\uB9AC\uCEEC \uB808\uBC84\uB9AC\uC9C0 \uD788\uD2B8 \uC2A4\uCF54\uC5B4", heat_desc: "\uB9C8\uC6B0\uC2A4\uB97C \uC62C\uB824\uB193\uC73C\uBA74 \uD574\uB2F9 \uB0A0\uC9DC\uC758 \uB808\uBC84\uB9AC\uC9C0 \uC0C1\uD669\uC744 \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uBCFC\uB968 \uBAA8\uBA58\uD140 + \uCD94\uC138 + \uB300\uCD9C/\uC0C1\uD658 \uBE44\uC728\uC73C\uB85C \uC2A4\uCF54\uC5B4 \uC0B0\uCD9C.",
+  trend_title: "\uB808\uBC84\uB9AC\uC9C0 \uB808\uC9D0 \uCD94\uC138 (30\uC77C MA)", trend_desc: "\uC77C\uBCC4 \uD788\uD2B8 \uC2A4\uCF54\uC5B4\uC758 30\uC77C \uC774\uB3D9\uD3C9\uADE0. \uC77C\uBCC4 \uB178\uC774\uC988\uB97C \uC81C\uAC70\uD558\uC5EC \uBA85\uD655\uD55C \uB808\uC9D0 \uC804\uD658\uACFC \uC9C0\uC18D\uC801 \uCD94\uC138 \uBCC0\uD654\uB97C \uD45C\uC2DC.",
   chart_7d: "7\uC77C \uD3C9\uADE0", chart_br: "\uB300\uCD9C/\uC0C1\uD658", chart_wow: "\uC804\uC8FC\uBE44", chart_net: "\uC21C 7\uC77C",
   borrow_vol: "\uB300\uCD9C \uBCFC\uB968 (7\uC77C MA)", borrow_vol_exp: "\uC77C\uBCC4 \uC2A4\uD14C\uC774\uBE14 \uC2E0\uADDC \uB300\uCD9C\uAE08\uC758 7\uC77C \uC774\uB3D9\uD3C9\uADE0",
   net_inflow: "\uC21C \uC720\uC785", net_inflow_exp: "\uC2E0\uADDC \uB300\uCD9C > \uC0C1\uD658\uC778 \uB0A0 = \uB808\uBC84\uB9AC\uC9C0 \uC21C\uC99D",
@@ -262,7 +264,57 @@ function Gauge({ score, size }) {
   </svg>);
 }
 
-// ── Heat Timeline Chart ──
+// ── Heat Score Bar Chart (daily bars, 0-100) ──
+function HeatBars({ heatData, period, setPeriod, t }) {
+  var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
+  var _cw = useContainerWidth(), containerRef = _cw[0], W = _cw[1];
+  if (!heatData || heatData.length < 10) return <div ref={containerRef}></div>;
+  var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
+  var filtered = period >= 9999 ? heatData : heatData.filter(function(d) { return new Date(d.dt) >= cutoff; });
+  if (filtered.length < 5) filtered = heatData;
+  var H = 140, pad = { t: 6, r: 14, b: 28, l: 34 };
+  var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+  var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
+  var hovInfo = filtered[activeIdx];
+  var hovScore100 = Math.round((hovInfo.score + 3) / 6 * 100);
+  var barW = Math.max(1, cW / filtered.length - 0.5);
+  var bars = [];
+  for (var i = 0; i < filtered.length; i++) {
+    var x = pad.l + (i / filtered.length) * cW;
+    var s100 = (filtered[i].score + 3) / 6 * 100;
+    var barH = (s100 / 100) * cH;
+    bars.push(<rect key={i} x={x} y={pad.t + cH - barH} width={barW} height={barH || 0.5} fill={sColor(filtered[i].score)} opacity={activeIdx === i ? 1 : 0.6} rx={0.5} />);
+  }
+  var crossX = pad.l + (activeIdx / filtered.length) * cW + barW / 2;
+  // Date labels
+  var dateLabels = []; var step = Math.max(1, Math.floor(filtered.length / 8));
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / filtered.length) * cW; dateLabels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#bbb" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>); }
+  // Y labels
+  var yLabels = [0, 50, 100].map(function(v) { var y = pad.t + cH - (v / 100) * cH; return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke="#f0f0f2" strokeWidth={0.3} /><text x={pad.l - 4} y={y + 3} textAnchor="end" fill="#ddd" style={{ fontSize: 8 }}>{v}</text></g>; });
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.floor((mouseX - pad.l) / cW * filtered.length); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  var regimeLabel = hovScore100 >= 83 ? "EXTREME" : hovScore100 >= 67 ? "LEVERAGING" : hovScore100 >= 55 ? "WARMING" : hovScore100 >= 45 ? "NEUTRAL" : hovScore100 >= 33 ? "COOLING" : "DELEVERAGED";
+  return (<div ref={containerRef} style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.heat_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
+      <div style={{ display: "flex", gap: 2 }}>{[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:11,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
+    </div>
+    <div style={{ fontSize: 11, marginBottom: 4, padding: "4px 8px", background: sColor(hovInfo.score) + "0d", borderRadius: 4, display: "inline-flex", gap: 12, minHeight: 22, alignItems: "center", flexWrap: "wrap" }}>
+      <b style={{ color: "#444" }}>{hovInfo.dt.split(" ")[0]}</b>
+      <span style={{ color: sColor(hovInfo.score), fontWeight: 700, fontSize: 14 }}>{hovScore100}</span>
+      <span style={{ color: sColor(hovInfo.score), fontWeight: 600, fontSize: 10, padding: "1px 5px", background: sColor(hovInfo.score) + "15", borderRadius: 3 }}>{regimeLabel}</span>
+      <span style={{ color: "#999", fontSize: 10 }}>Vol: ${fmt(hovInfo.borrow)}</span>
+      <span style={{ color: "#999", fontSize: 10 }}>B/R: {hovInfo.brRatio.toFixed(2)}x</span>
+    </div>
+    <svg width={W} height={H} style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
+      {yLabels}{bars}
+      <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t + cH} stroke="#bbb" strokeWidth={0.5} strokeDasharray="2,2" />
+      {dateLabels}
+      <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
+    </svg>
+  </div>);
+}
+
+// ── Heat Timeline Chart (line) ──
 function HeatTimeline({ heatData, period, setPeriod, t }) {
   var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
   var _cw = useContainerWidth(), containerRef = _cw[0], W = _cw[1];
@@ -342,6 +394,103 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
       {dateLabels}
       <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
     </svg>
+  </div>);
+}
+
+// ── Smoothed Regime Trend (30d MA) ──
+function HeatTrend({ heatData, period, setPeriod, t }) {
+  var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
+  var _cw = useContainerWidth(), containerRef = _cw[0], W = _cw[1];
+  if (!heatData || heatData.length < 40) return <div ref={containerRef}></div>;
+  // Compute 30d moving average of 0-100 scores
+  var raw100 = heatData.map(function(d) { return Math.round((d.score + 3) / 6 * 100); });
+  var ma30 = [];
+  for (var i = 0; i < heatData.length; i++) {
+    var start = Math.max(0, i - 29), sum = 0;
+    for (var j = start; j <= i; j++) sum += raw100[j];
+    ma30.push({ dt: heatData[i].dt, val: Math.round(sum / (i - start + 1)), raw: raw100[i] });
+  }
+  var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
+  var filtered = period >= 9999 ? ma30 : ma30.filter(function(d) { return new Date(d.dt) >= cutoff; });
+  if (filtered.length < 5) filtered = ma30;
+  var H = 180, pad = { t: 10, r: 52, b: 28, l: 34 };
+  var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+  var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
+  var hovInfo = filtered[activeIdx];
+  // Convert 0-100 back to internal score for sColor
+  function scoreFromVal(v) { return (v / 100) * 6 - 3; }
+  // Build colored segments
+  var points = [];
+  for (var i = 0; i < filtered.length; i++) {
+    var x = pad.l + (i / (filtered.length - 1)) * cW;
+    var y = pad.t + cH - (filtered[i].val / 100) * cH;
+    points.push({ x: x, y: y, val: filtered[i].val });
+  }
+  var segments = [];
+  for (var i = 0; i < points.length - 1; i++) {
+    var avgVal = (points[i].val + points[i + 1].val) / 2;
+    segments.push(<line key={i} x1={points[i].x} y1={points[i].y} x2={points[i+1].x} y2={points[i+1].y} stroke={sColor(scoreFromVal(avgVal))} strokeWidth={2.5} strokeLinecap="round" />);
+  }
+  // Faint raw daily line behind
+  var rawPts = [];
+  for (var i = 0; i < filtered.length; i++) {
+    var x = pad.l + (i / (filtered.length - 1)) * cW;
+    var y = pad.t + cH - (filtered[i].raw / 100) * cH;
+    rawPts.push(x + "," + y);
+  }
+  var rawLine = "M " + rawPts.join(" L ");
+  // Crosshair
+  var crossX = points[activeIdx].x;
+  var crossY = points[activeIdx].y;
+  // Y grid
+  var yGrid = [0, 25, 50, 75, 100].map(function(v) {
+    var y = pad.t + cH - (v / 100) * cH;
+    return <g key={v}><line x1={pad.l} y1={y} x2={pad.l + cW} y2={y} stroke={v === 50 ? "#ddd" : "#f0f0f2"} strokeWidth={v === 50 ? 0.5 : 0.3} /><text x={pad.l - 5} y={y + 3} textAnchor="end" fill="#ccc" style={{ fontSize: 9 }}>{v}</text></g>;
+  });
+  // Right labels
+  var regimeLabels = [
+    { label: "EXTREME", mid: 91.5, color: "#c41830" },
+    { label: "LEVERAGING", mid: 75, color: "#d4522a" },
+    { label: "WARMING", mid: 61, color: "#c47a20" },
+    { label: "NEUTRAL", mid: 50, color: "#888" },
+    { label: "COOLING", mid: 39, color: "#4da87a" },
+    { label: "DELEV.", mid: 16.5, color: "#0ea371" }
+  ].map(function(r) {
+    var y = pad.t + cH - (r.mid / 100) * cH;
+    return <text key={r.label} x={pad.l + cW + 5} y={y + 3} fill={r.color} opacity={0.4} style={{ fontSize: 7, fontWeight: 600 }}>{r.label}</text>;
+  });
+  // Date labels
+  var dateLabels = []; var step = Math.max(1, Math.floor(filtered.length / 8));
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; dateLabels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#bbb" style={{ fontSize: 9 }}>{filtered[i].dt.split(" ")[0]}</text>); }
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.round((mouseX - pad.l) / cW * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  var regimeLabel = hovInfo.val >= 83 ? "EXTREME" : hovInfo.val >= 67 ? "LEVERAGING" : hovInfo.val >= 55 ? "WARMING" : hovInfo.val >= 45 ? "NEUTRAL" : hovInfo.val >= 33 ? "COOLING" : "DELEVERAGED";
+  var hovColor = sColor(scoreFromVal(hovInfo.val));
+  return (<div ref={containerRef} style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.trend_title} &middot; {period >= 9999 ? "ALL" : period + "D"}</span>
+      <div style={{ display: "flex", gap: 2 }}>{[{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) { var active = p.d === period; return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:11,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>; })}</div>
+    </div>
+    <div style={{ fontSize: 12, marginBottom: 6, padding: "5px 10px", background: hovColor + "0d", borderRadius: 4, display: "inline-flex", gap: 14, minHeight: 24, alignItems: "center", flexWrap: "wrap" }}>
+      <b style={{ color: "#444" }}>{hovInfo.dt.split(" ")[0]}</b>
+      <span style={{ color: hovColor, fontWeight: 700, fontSize: 16 }}>{hovInfo.val}</span>
+      <span style={{ color: hovColor, fontWeight: 600, fontSize: 11, padding: "1px 6px", background: hovColor + "15", borderRadius: 3 }}>{regimeLabel}</span>
+      <span style={{ color: "#bbb", fontSize: 10 }}>(daily: {hovInfo.raw})</span>
+    </div>
+    <svg width={W} height={H} style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
+      {yGrid}
+      <path d={rawLine} stroke="#e0e0e4" strokeWidth={0.7} fill="none" />
+      {segments}
+      {regimeLabels}
+      <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t + cH} stroke="#bbb" strokeWidth={0.5} strokeDasharray="3,3" />
+      <circle cx={crossX} cy={crossY} r={4} fill={hovColor} stroke="#fff" strokeWidth={2} />
+      {dateLabels}
+      <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
+    </svg>
+    <div style={{ fontSize: 10, color: "#bbb", marginTop: 4 }}>
+      <span style={{ display: "inline-block", width: 14, height: 2, background: "#d4522a", borderRadius: 1, marginRight: 4, verticalAlign: "middle" }}></span>30d MA
+      <span style={{ display: "inline-block", width: 14, height: 1, background: "#ddd", borderRadius: 1, marginLeft: 12, marginRight: 4, verticalAlign: "middle" }}></span>Daily
+      <span style={{ marginLeft: 12 }}>{t.trend_desc}</span>
+    </div>
   </div>);
 }
 
@@ -603,6 +752,7 @@ export default function App() {
   var _dl = useState(false), duneLoading = _dl[0], setDuneLoading = _dl[1];
   var _cp = useState(9999), chartPeriod = _cp[0], setChartPeriod = _cp[1];
   var _hp = useState(9999), heatPeriod = _hp[0], setHeatPeriod = _hp[1];
+  var _tp = useState(9999), trendPeriod = _tp[0], setTrendPeriod = _tp[1];
   var _mp = useState(9999), metricsPeriod = _mp[0], setMetricsPeriod = _mp[1];
   var _hist = useState(null), historyData = _hist[0], setHistoryData = _hist[1];
 
@@ -726,7 +876,9 @@ export default function App() {
         <RegimeMethodology t={t} />
 
         {/* HEAT TIMELINE */}
+        <HeatBars heatData={heatData} period={heatPeriod} setPeriod={setHeatPeriod} t={t} />
         <HeatTimeline heatData={heatData} period={heatPeriod} setPeriod={setHeatPeriod} t={t} />
+        <HeatTrend heatData={heatData} period={trendPeriod} setPeriod={setTrendPeriod} t={t} />
 
         {/* BORROW CHART */}
         {duneData&&duneData.length>3&&(<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:8,padding:"12px 16px",marginBottom:12}}>
