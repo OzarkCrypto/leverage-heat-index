@@ -89,6 +89,11 @@ var T = { en: {
   metric_bmcap: "Borrows / BTC Market Cap (%)", metric_bmcap_desc: "Stablecoin borrows as % of BTC market cap. Measures leverage density vs market size. CoinGecko BTC data (365d).",
   metric_btcfund: "BTC Funding Rate (ann)", metric_btcfund_desc: "BTC perpetual funding rate on Hyperliquid, annualized. Positive = longs pay shorts. 90d history.",
   metric_ethfund: "ETH Funding Rate (ann)", metric_ethfund_desc: "ETH perpetual funding rate on Hyperliquid, annualized. 90d history.",
+  regime_method_title: "Regime Classification Methodology",
+  regime_method: "The composite score (0\u2013100) is computed from 3 weighted layers. Each layer contains multiple sub-metrics scored on a continuous scale, then combined. The final score determines the current regime.",
+  regime_layers: "Layer Weights: Borrow Cost (40%) measures how expensive it is to borrow stablecoins on-chain + perp funding rates. Utilization & Capacity (35%) measures how much of available lending capacity is being used and how fast demand is growing. OI & Risk (25%) measures speculative positioning scale and market stress from derivatives data.",
+  regime_thresholds: "Regime Thresholds (score 0\u2013100): DELEVERAGED (0\u201333) = market fully unwound, max opportunity. COOLING (33\u201345) = leverage shrinking, cheap borrow. NEUTRAL (45\u201355) = baseline, no strong signal. WARMING (55\u201367) = early leverage buildup. LEVERAGING UP (67\u201383) = active leverage expansion, crowded. EXTREME (83\u2013100) = historical highs, cascade risk.",
+  regime_data_sources: "Data Sources: DeFiLlama (real-time + historical borrow rates, utilization, borrows across 7+ protocols). Dune Analytics (on-chain borrow/repay transaction volumes since 2021). Hyperliquid (funding rates, OI across 229 perp pairs). CoinGecko (BTC price + market cap for normalization).",
 }, ko: {
   title: "\uB808\uBC84\uB9AC\uC9C0 \uD788\uD2B8 \uC778\uB371\uC2A4", subtitle: "\uC628\uCCB4\uC778 \uB808\uBC84\uB9AC\uC9C0 \uC218\uC694/\uACF5\uAE09 \uB808\uC9D0 \uBAA8\uB2C8\uD130",
   sources: "DeFiLlama \u00b7 CoinGecko \u00b7 Hyperliquid \u00b7 Dune",
@@ -158,6 +163,11 @@ var T = { en: {
   metric_bmcap: "\uB300\uCD9C/BTC \uC2DC\uCD1D (%)", metric_bmcap_desc: "\uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C\uC758 BTC \uC2DC\uCD1D \uB300\uBE44 \uBE44\uC728. \uC2DC\uC7A5 \uADDC\uBAA8 \uB300\uBE44 \uB808\uBC84\uB9AC\uC9C0 \uBC00\uB3C4. CoinGecko BTC \uB370\uC774\uD130 (365\uC77C).",
   metric_btcfund: "BTC \uD380\uB529\uB808\uC774\uD2B8 (\uC5F0\uD658\uC0B0)", metric_btcfund_desc: "Hyperliquid BTC \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8(\uC5F0\uD658\uC0B0). \uC591\uC218=\uB871\u2192\uC219. 90\uC77C \uD788\uC2A4\uD1A0\uB9AC.",
   metric_ethfund: "ETH \uD380\uB529\uB808\uC774\uD2B8 (\uC5F0\uD658\uC0B0)", metric_ethfund_desc: "Hyperliquid ETH \uBB34\uAE30\uD55C \uD380\uB529\uB808\uC774\uD2B8(\uC5F0\uD658\uC0B0). 90\uC77C \uD788\uC2A4\uD1A0\uB9AC.",
+  regime_method_title: "\uB808\uC9D0 \uBD84\uB958 \uBC29\uBC95\uB860",
+  regime_method: "\uC885\uD569 \uC2A4\uCF54\uC5B4(0\u2013100)\uB294 3\uAC1C \uAC00\uC911 \uB808\uC774\uC5B4\uB85C \uACC4\uC0B0\uB429\uB2C8\uB2E4. \uAC01 \uB808\uC774\uC5B4\uB294 \uC5EC\uB7EC \uD558\uC704 \uC9C0\uD45C\uB97C \uC5F0\uC18D\uC801 \uC2A4\uCF00\uC77C\uB85C \uC810\uC218\uD654\uD55C \uD6C4 \uACB0\uD569\uD569\uB2C8\uB2E4. \uCD5C\uC885 \uC810\uC218\uAC00 \uD604\uC7AC \uB808\uC9D0\uC744 \uACB0\uC815\uD569\uB2C8\uB2E4.",
+  regime_layers: "\uB808\uC774\uC5B4 \uAC00\uC911\uCE58: \uCC28\uC785 \uBE44\uC6A9(40%) = \uC2A4\uD14C\uC774\uBE14 \uCC28\uC785 \uBE44\uC6A9 + perp \uD380\uB529. \uD65C\uC6A9\uB960 & \uC6A9\uB7C9(35%) = \uB80C\uB529 \uC6A9\uB7C9 \uC0AC\uC6A9\uB7C9\uACFC \uC218\uC694 \uC131\uC7A5 \uC18D\uB3C4. OI & \uB9AC\uC2A4\uD06C(25%) = \uD30C\uC0DD\uC0C1\uD488 \uD22C\uAE30\uC801 \uD3EC\uC9C0\uC154\uB2DD \uADDC\uBAA8\uC640 \uC2DC\uC7A5 \uC2A4\uD2B8\uB808\uC2A4.",
+  regime_thresholds: "\uB808\uC9D0 \uAE30\uC900 (\uC2A4\uCF54\uC5B4 0\u2013100): DELEVERAGED(0\u201333) = \uC2DC\uC7A5 \uC644\uC804 \uD574\uC18C, \uCD5C\uB300 \uAE30\uD68C. COOLING(33\u201345) = \uB808\uBC84\uB9AC\uC9C0 \uCD95\uC18C, \uC800\uB834\uD55C \uCC28\uC785. NEUTRAL(45\u201355) = \uAE30\uC900\uC120, \uBC29\uD5A5\uC131 \uC5C6\uC74C. WARMING(55\u201367) = \uCD08\uAE30 \uB808\uBC84\uB9AC\uC9C0 \uCD95\uC801. LEVERAGING UP(67\u201383) = \uC801\uADF9\uC801 \uD655\uB300, \uD63C\uC7A1. EXTREME(83\u2013100) = \uC5ED\uC0AC\uC801 \uACE0\uC810, \uCE90\uC2A4\uCF00\uC774\uB4DC \uC704\uD5D8.",
+  regime_data_sources: "\uB370\uC774\uD130 \uC18C\uC2A4: DeFiLlama(\uC2E4\uC2DC\uAC04+\uD788\uC2A4\uD1A0\uB9AC\uCEEC \uB300\uCD9C \uAE08\uB9AC, \uD65C\uC6A9\uB960, 7\uAC1C+ \uD504\uB85C\uD1A0\uCF5C). Dune Analytics(2021\uB144\uBD80\uD130 \uC628\uCCB4\uC778 \uB300\uCD9C/\uC0C1\uD658 \uD2B8\uB79C\uC7AD\uC158). Hyperliquid(229\uAC1C perp \uD380\uB529+OI). CoinGecko(BTC \uAC00\uACA9+\uC2DC\uCD1D).",
 }};
 
 function lerp(a, b, t) { return a + (b - a) * Math.min(1, Math.max(0, t)); }
@@ -216,16 +226,21 @@ function computeHeatScores(data) {
 
 // ── Gauge ──
 function Gauge({ score, size }) {
-  if (!size) size = 140; var r = size * 0.36, cx = size / 2, cy = size * 0.5;
+  if (!size) size = 140;
+  var score100 = Math.round((score + 3) / 6 * 100); // convert -3~+3 to 0~100
+  var r = size * 0.34, cx = size / 2, cy = size * 0.42;
+  var svgH = size * 0.72; // taller to fit text below
   var sA = -210, eA = 30, range = eA - sA, t = (score + 3) / 6, nA = sA + range * t;
   var toR = function(a) { return (a * Math.PI) / 180; };
   var arc = function(a1, a2) { var s = toR(a1), e = toR(a2); return "M "+(cx+r*Math.cos(s))+" "+(cy+r*Math.sin(s))+" A "+r+" "+r+" 0 "+(a2-a1>180?1:0)+" 1 "+(cx+r*Math.cos(e))+" "+(cy+r*Math.sin(e)); };
   var arcP = Array.from({length:60}, function(_,i) { var f=i/60; return <path key={i} d={arc(sA+range*f, sA+range*(f+1/60))} stroke={sColor(-3+6*f)} strokeWidth={5} fill="none" opacity={0.25} />; });
   var nd = toR(nA), nl = r * 0.75;
-  return (<svg width={size} height={size*0.56} viewBox={"0 0 "+size+" "+(size*0.56)}>
+  return (<svg width={size} height={svgH} viewBox={"0 0 "+size+" "+svgH}>
     {arcP}<line x1={cx} y1={cy} x2={cx+nl*Math.cos(nd)} y2={cy+nl*Math.sin(nd)} stroke={sColor(score)} strokeWidth={2} strokeLinecap="round" /><circle cx={cx} cy={cy} r={3} fill={sColor(score)} />
-    <text x={cx} y={cy+18} textAnchor="middle" fill={sColor(score)} style={{fontSize:24,fontWeight:700,fontFamily:"var(--f)"}}>{score>0?"+":""}{score.toFixed(2)}</text>
-    <text x={cx} y={cy+30} textAnchor="middle" fill={sColor(score)} style={{fontSize:10,fontWeight:600,fontFamily:"var(--f)",letterSpacing:1.5}}>{sLabel(score)}</text>
+    <text x={cx} y={cy+22} textAnchor="middle" fill={sColor(score)} style={{fontSize:28,fontWeight:700,fontFamily:"var(--f)"}}>{score100}</text>
+    <text x={cx} y={cy+36} textAnchor="middle" fill={sColor(score)} style={{fontSize:10,fontWeight:600,fontFamily:"var(--f)",letterSpacing:1.5}}>{sLabel(score)}</text>
+    <text x={cx - r - 4} y={cy + r * 0.55} textAnchor="end" fill="#ccc" style={{fontSize:9,fontFamily:"var(--f)"}}>0</text>
+    <text x={cx + r + 4} y={cy + r * 0.55} textAnchor="start" fill="#ccc" style={{fontSize:9,fontFamily:"var(--f)"}}>100</text>
   </svg>);
 }
 
@@ -688,9 +703,33 @@ export default function App() {
           </div>)}
         </div>
 
+        {/* REGIME METHODOLOGY */}
+        <div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:6,padding:"12px 16px",marginBottom:8}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>{t.regime_method_title}</div>
+          <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:8}}>{t.regime_method}</div>
+          <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:8}}>{t.regime_layers}</div>
+          <div style={{marginBottom:8}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {[
+                {label:"DELEVERAGED",range:"0\u201333",color:"#0ea371"},
+                {label:"COOLING",range:"33\u201345",color:"#4da87a"},
+                {label:"NEUTRAL",range:"45\u201355",color:"#888"},
+                {label:"WARMING",range:"55\u201367",color:"#c47a20"},
+                {label:"LEVERAGING UP",range:"67\u201383",color:"#d4522a"},
+                {label:"EXTREME",range:"83\u2013100",color:"#c41830"}
+              ].map(function(r){return <div key={r.label} style={{display:"flex",alignItems:"center",gap:4,padding:"2px 8px",borderRadius:3,background:r.color+"10",border:"1px solid "+r.color+"30",fontSize:10}}>
+                <span style={{width:8,height:8,borderRadius:1,background:r.color,display:"inline-block"}}></span>
+                <span style={{fontWeight:700,color:r.color}}>{r.label}</span>
+                <span style={{color:"#999"}}>{r.range}</span>
+              </div>;})}
+            </div>
+          </div>
+          <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:4}}>{t.regime_thresholds}</div>
+          <div style={{fontSize:10,color:"#aaa",lineHeight:1.6}}>{t.regime_data_sources}</div>
+        </div>
+
         <div style={{fontSize:10,color:"#bbb",lineHeight:1.8}}>
-          <b style={{color:"#999"}}>{t.coverage}:</b> {t.coverage_desc}<br />
-          <b style={{color:"#999"}}>{t.methodology}:</b> Cost(40%): borrow rate + perp funding | Capacity(35%): util + borrows + borrows/BTC mcap + vol momentum | Risk(25%): HL OI + concentration + funding div + net flow | Cron: daily 06:00 UTC
+          <b style={{color:"#999"}}>{t.coverage}:</b> {t.coverage_desc}
         </div>
         <div style={{marginTop:8,fontSize:12}}>
           <a href="https://dune.com/ozark/onchain-leverage-index" target="_blank" rel="noopener noreferrer" style={{color:"#7c8cf5",textDecoration:"none",fontWeight:600}}>
