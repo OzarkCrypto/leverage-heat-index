@@ -74,6 +74,14 @@ var T = { en: {
   sig_util_high: "Utilization high", sig_oi_high: "OI elevated",
   sig_alt_frenzy: "Alt leverage frenzy", sig_expand: "Net leverage expanding",
   sig_delever: "Net deleveraging", sig_vol_surge: "Volume surging", sig_vol_crash: "Volume collapsing",
+  metrics_title: "Derived Metrics Timeline",
+  metric_br: "7d B/R Ratio (Borrow / Repay)",
+  metric_br_desc: "Rolling 7-day borrow/repay ratio. Above 1.0 = leverage expanding. Below 1.0 = deleveraging.",
+  metric_mom: "Volume Momentum (7d vs 30d)",
+  metric_mom_desc: "7-day avg borrow volume relative to 30-day avg, expressed as %. Positive = accelerating demand.",
+  metric_cumflow: "Cumulative Net Leverage Flow",
+  metric_cumflow_desc: "Running sum of (borrow - repay) since 2021. Rising = leverage accumulating in the system.",
+  metrics_note: "Borrow rate, utilization, HL OI: real-time only (no historical API). Daily snapshots planned.",
 }, ko: {
   title: "\uB808\uBC84\uB9AC\uC9C0 \uD788\uD2B8 \uC778\uB371\uC2A4", subtitle: "\uC628\uCCB4\uC778 \uB808\uBC84\uB9AC\uC9C0 \uC218\uC694/\uACF5\uAE09 \uB808\uC9D0 \uBAA8\uB2C8\uD130",
   sources: "DeFiLlama \u00b7 CoinGecko \u00b7 Hyperliquid \u00b7 Dune",
@@ -128,6 +136,14 @@ var T = { en: {
   sig_util_high: "\uD65C\uC6A9\uB960 \uB192\uC74C", sig_oi_high: "OI \uC0C1\uC2B9",
   sig_alt_frenzy: "\uC54C\uD2B8 \uB808\uBC84\uB9AC\uC9C0 \uD3ED\uBC1C", sig_expand: "\uC21C \uB808\uBC84\uB9AC\uC9C0 \uD655\uB300",
   sig_delever: "\uC21C \uB514\uB808\uBC84\uB9AC\uC9D5", sig_vol_surge: "\uBCFC\uB968 \uAE09\uC99D", sig_vol_crash: "\uBCFC\uB968 \uAE09\uAC10",
+  metrics_title: "\uD30C\uC0DD \uC9C0\uD45C \uC2DC\uACC4\uC5F4",
+  metric_br: "7\uC77C \uB300\uCD9C/\uC0C1\uD658 \uBE44\uC728",
+  metric_br_desc: "\uB864\uB9C1 7\uC77C \uB300\uCD9C/\uC0C1\uD658 \uBE44\uC728. 1.0 \uC774\uC0C1 = \uB808\uBC84\uB9AC\uC9C0 \uD655\uB300. 1.0 \uBBF8\uB9CC = \uB514\uB808\uBC84\uB9AC\uC9D5.",
+  metric_mom: "\uBCFC\uB968 \uBAA8\uBA58\uD140 (7\uC77C/30\uC77C)",
+  metric_mom_desc: "7\uC77C \uD3C9\uADE0 \uB300\uCD9C\uB7C9\uC758 30\uC77C \uD3C9\uADE0 \uB300\uBE44 % \uBCC0\uD654. \uC591\uC218 = \uC218\uC694 \uAC00\uC18D.",
+  metric_cumflow: "\uB204\uC801 \uC21C \uB808\uBC84\uB9AC\uC9C0 \uD750\uB984",
+  metric_cumflow_desc: "2021\uB144\uBD80\uD130 (\uB300\uCD9C - \uC0C1\uD658) \uB204\uC801\uD569. \uC0C1\uC2B9 = \uC2DC\uC2A4\uD15C\uC5D0 \uB808\uBC84\uB9AC\uC9C0 \uCD95\uC801.",
+  metrics_note: "\uB300\uCD9C \uAE08\uB9AC, \uD65C\uC6A9\uB960, HL OI: \uC2E4\uC2DC\uAC04 \uC804\uC6A9 (\uD788\uC2A4\uD1A0\uB9AC\uCEEC API \uC5C6\uC74C). \uC77C\uC77C \uC2A4\uB0C5\uC0F7 \uCD94\uAC00 \uC608\uC815.",
 }};
 
 function lerp(a, b, t) { return a + (b - a) * Math.min(1, Math.max(0, t)); }
@@ -308,6 +324,104 @@ function BorrowChart({ data, period, setPeriod, t }) {
   </div>);
 }
 
+// ── Metrics Explorer: derived time-series from Dune data ──
+function computeDerivedMetrics(data) {
+  if (!data || data.length < 30) return null;
+  var br = [], mom = [], cumflow = [];
+  var cumSum = 0;
+  for (var i = 0; i < data.length; i++) {
+    // Rolling 7d B/R ratio
+    var s7b = 0, s7r = 0;
+    for (var j = Math.max(0, i - 6); j <= i; j++) { s7b += data[j].borrow; s7r += data[j].repay; }
+    br.push({ dt: data[i].dt, val: s7r > 0 ? s7b / s7r : 1 });
+    // Volume momentum: 7d avg vs 30d avg
+    var avg7 = s7b / Math.min(7, i + 1);
+    var s30 = 0; var c30 = Math.min(30, i + 1);
+    for (var j = Math.max(0, i - 29); j <= i; j++) s30 += data[j].borrow;
+    var avg30 = s30 / c30;
+    mom.push({ dt: data[i].dt, val: avg30 > 0 ? ((avg7 / avg30) - 1) * 100 : 0 });
+    // Cumulative net flow
+    cumSum += data[i].borrow - data[i].repay;
+    cumflow.push({ dt: data[i].dt, val: cumSum });
+  }
+  return { br: br, mom: mom, cumflow: cumflow };
+}
+
+function MiniChart({ data, period, label, desc, color, baselineY, formatVal, t }) {
+  var _cw = useContainerWidth(), containerRef = _cw[0], W = _cw[1];
+  var _hov = useState(-1), hov = _hov[0], setHov = _hov[1];
+  if (!data || data.length < 10) return <div ref={containerRef}></div>;
+  var now = new Date(); var cutoff = new Date(now.getTime() - period * 86400000);
+  var filtered = period >= 9999 ? data : data.filter(function(d) { return new Date(d.dt) >= cutoff; });
+  if (filtered.length < 5) filtered = data;
+  var H = 120, pad = { t: 8, r: 8, b: 24, l: 50 };
+  var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+  var vals = filtered.map(function(d) { return d.val; });
+  var minV = Math.min.apply(null, vals), maxV = Math.max.apply(null, vals);
+  if (maxV === minV) { maxV = minV + 1; }
+  var range = maxV - minV;
+  // Build line
+  var pts = [];
+  for (var i = 0; i < filtered.length; i++) {
+    var x = pad.l + (i / (filtered.length - 1)) * cW;
+    var y = pad.t + cH - ((filtered[i].val - minV) / range) * cH;
+    pts.push(x + "," + y);
+  }
+  var line = "M " + pts.join(" L ");
+  var area = "M " + pad.l + "," + (pad.t + cH) + " L " + pts.join(" L ") + " L " + (pad.l + cW) + "," + (pad.t + cH) + " Z";
+  // Baseline
+  var blY = null;
+  if (baselineY != null) { blY = pad.t + cH - ((baselineY - minV) / range) * cH; }
+  // Labels
+  var dateLabels = []; var step = Math.max(1, Math.floor(filtered.length / 6));
+  for (var i = 0; i < filtered.length; i += step) { var x = pad.l + (i / (filtered.length - 1)) * cW; dateLabels.push(<text key={i} x={x} y={H - 4} textAnchor="middle" fill="#bbb" style={{ fontSize: 10 }}>{filtered[i].dt.split(" ")[0].slice(2)}</text>); }
+  var yLabels = [minV, (minV + maxV) / 2, maxV].map(function(v, i) { var y = pad.t + cH - ((v - minV) / range) * cH; return <text key={i} x={pad.l - 4} y={y + 3} textAnchor="end" fill="#ccc" style={{ fontSize: 10 }}>{formatVal(v)}</text>; });
+  // Hover
+  var activeIdx = hov >= 0 && hov < filtered.length ? hov : filtered.length - 1;
+  var activeData = filtered[activeIdx];
+  var crossX = pad.l + (activeIdx / (filtered.length - 1)) * cW;
+  var handleMove = function(e) { var svg = e.currentTarget; var rect = svg.getBoundingClientRect(); var mouseX = e.clientX - rect.left; var idx = Math.round((mouseX - pad.l) / cW * (filtered.length - 1)); setHov(Math.max(0, Math.min(filtered.length - 1, idx))); };
+  return (<div ref={containerRef} style={{ marginBottom: 8 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: "#888" }}>{label}</span>
+      <span style={{ fontSize: 11, color: "#666" }}><b>{activeData.dt.split(" ")[0]}</b>: <b style={{ color: color }}>{formatVal(activeData.val)}</b></span>
+    </div>
+    <svg width={W} height={H} style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
+      {yLabels}
+      <path d={area} fill={color + "10"} />
+      <path d={line} stroke={color} strokeWidth={1.5} fill="none" />
+      {blY != null && <line x1={pad.l} y1={blY} x2={pad.l + cW} y2={blY} stroke="#ccc" strokeWidth={0.5} strokeDasharray="3,3" />}
+      <line x1={crossX} y1={pad.t} x2={crossX} y2={pad.t + cH} stroke="#999" strokeWidth={0.5} strokeDasharray="2,2" />
+      {dateLabels}
+      <rect x={pad.l} y={pad.t} width={cW} height={cH} fill="transparent" />
+    </svg>
+    <div style={{ fontSize: 10, color: "#bbb", marginTop: 1 }}>{desc}</div>
+  </div>);
+}
+
+function MetricsExplorer({ duneData, period, setPeriod, t }) {
+  var derived = useMemo(function() { return computeDerivedMetrics(duneData); }, [duneData]);
+  if (!derived) return null;
+  var fmtRatio = function(v) { return v.toFixed(2) + "x"; };
+  var fmtPct = function(v) { return (v > 0 ? "+" : "") + v.toFixed(1) + "%"; };
+  var fmtDollar = function(v) { return "$" + fmt(v); };
+  return (<div style={{ background: "#fff", border: "1px solid #e8e8ec", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#999", letterSpacing: 1, textTransform: "uppercase" }}>{t.metrics_title}</span>
+      <div style={{ display: "flex", gap: 2 }}>
+        {[{l:"90D",d:90},{l:"1Y",d:365},{l:"2Y",d:730},{l:"ALL",d:9999}].map(function(p) {
+          var active = p.d === period;
+          return <button key={p.l} onClick={function(){setPeriod(p.d);}} style={{background:active?"#111":"#fff",color:active?"#fff":"#999",border:"1px solid "+(active?"#111":"#e0e0e4"),borderRadius:3,padding:"2px 7px",fontSize:11,fontFamily:"var(--f)",cursor:"pointer",fontWeight:active?700:400}}>{p.l}</button>;
+        })}
+      </div>
+    </div>
+    <MiniChart data={derived.br} period={period} label={t.metric_br} desc={t.metric_br_desc} color="#7c8cf5" baselineY={1.0} formatVal={fmtRatio} t={t} />
+    <MiniChart data={derived.mom} period={period} label={t.metric_mom} desc={t.metric_mom_desc} color="#c47a20" baselineY={0} formatVal={fmtPct} t={t} />
+    <MiniChart data={derived.cumflow} period={period} label={t.metric_cumflow} desc={t.metric_cumflow_desc} color="#0ea371" baselineY={0} formatVal={fmtDollar} t={t} />
+    <div style={{ fontSize: 10, color: "#bbb", marginTop: 6, padding: "6px 0", borderTop: "1px solid #f0f0f2" }}>{t.metrics_note}</div>
+  </div>);
+}
+
 function Row({ label, val, score, sub, exp }) {
   var _s = useState(false), sh = _s[0], setSh = _s[1];
   return (<div>
@@ -351,6 +465,7 @@ export default function App() {
   var _dl = useState(false), duneLoading = _dl[0], setDuneLoading = _dl[1];
   var _cp = useState(9999), chartPeriod = _cp[0], setChartPeriod = _cp[1];
   var _hp = useState(9999), heatPeriod = _hp[0], setHeatPeriod = _hp[1];
+  var _mp = useState(9999), metricsPeriod = _mp[0], setMetricsPeriod = _mp[1];
 
   var fetchAll = useCallback(function() {
     setLoading(true); setError(null); var status = {};
@@ -476,6 +591,9 @@ export default function App() {
             <span>{t.chart_net}: <b style={{color:duneMetrics.netFlow7>=0?"#0ea371":"#d4522a"}}>${fmt(duneMetrics.netFlow7)}</b></span>
           </div>)}
         </div>)}
+
+        {/* DERIVED METRICS */}
+        <MetricsExplorer duneData={duneData} period={metricsPeriod} setPeriod={setMetricsPeriod} t={t} />
 
         {/* 3 LAYERS */}
         <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
