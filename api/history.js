@@ -1,36 +1,27 @@
 // api/history.js
 // Aggregates historical lending data from DeFiLlama chartLendBorrow API
-// + CoinGecko BTC price/mcap
+// + CoinGecko BTC price/mcap + Hyperliquid funding
 // Caches for 6 hours to avoid rate limiting
 
-var POOL_IDS = null; // discovered dynamically
-var PROTOCOLS = ["aave-v3", "compound-v3", "morpho-v1", "sparklend"];
-var STABLES = ["usdc", "usdt", "dai", "usds"];
-
-async function discoverPools() {
-  var res = await fetch("https://yields.llama.fi/poolsBorrow");
-  var data = await res.json();
-  if (!data.data) return [];
-  var pools = [];
-  for (var i = 0; i < data.data.length; i++) {
-    var p = data.data[i];
-    var proj = (p.project || "").toLowerCase();
-    var sym = (p.symbol || "").toLowerCase();
-    var matchP = PROTOCOLS.indexOf(proj) !== -1;
-    var matchS = false;
-    for (var j = 0; j < STABLES.length; j++) { if (sym.indexOf(STABLES[j]) !== -1) { matchS = true; break; } }
-    if (matchP && matchS && (p.totalBorrowUsd || 0) > 50000000) {
-      pools.push({ pool: p.pool, project: p.project, symbol: p.symbol, chain: p.chain, borrow: p.totalBorrowUsd || 0 });
-    }
-  }
-  pools.sort(function(a, b) { return b.borrow - a.borrow; });
-  return pools.slice(0, 8); // top 8 pools by borrow size
-}
+// Hardcoded top lending pools (updated 2026-03-25)
+// Avoids calling poolsBorrow which has strict rate limits
+var POOLS = [
+  { pool: "aa70268e-4b52-42bf-a116-608b370f9501", project: "aave-v3", symbol: "USDC", chain: "Ethereum" },
+  { pool: "f981a304-bb6c-45b8-b0c5-fd2f515ad23a", project: "aave-v3", symbol: "USDT", chain: "Ethereum" },
+  { pool: "7e0661bf-8cf3-45e6-9424-31916d4c7b84", project: "aave-v3", symbol: "USDC", chain: "Base" },
+  { pool: "7da72d09-56ca-4ec5-a45f-59114353e487", project: "compound-v3", symbol: "USDC", chain: "Ethereum" },
+  { pool: "9469cde6-65d8-4bbb-ade6-8a89f1728403", project: "morpho-v1", symbol: "SUSDS", chain: "Ethereum" },
+  { pool: "8fbe28b8-140d-4e37-8804-5d2aba4daded", project: "sparklend", symbol: "USDT", chain: "Ethereum" },
+  { pool: "d9fa8e14-0447-4207-9ae8-7810199dfa1f", project: "aave-v3", symbol: "USDC", chain: "Arbitrum" },
+  { pool: "e338c687-a5d8-4abf-bc04-127990811b0a", project: "aave-v3", symbol: "USDT0", chain: "Plasma" }
+];
 
 async function fetchPoolHistory(poolId) {
   try {
     var res = await fetch("https://yields.llama.fi/chartLendBorrow/" + poolId);
-    var data = await res.json();
+    var text = await res.text();
+    if (text.indexOf("Upgrade to") !== -1) return []; // rate limited
+    var data = JSON.parse(text);
     if (data.status === "success" && data.data) return data.data;
     return [];
   } catch (e) { return []; }
@@ -94,11 +85,8 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate=43200"); // 6h cache
 
   try {
-    // 1. Discover top pools
-    var pools = await discoverPools();
-    if (pools.length === 0) {
-      return res.status(200).json({ error: "No pools discovered", history: [] });
-    }
+    // 1. Use hardcoded pool list (no rate-limited API call needed)
+    var pools = POOLS;
 
     // 2. Fetch history for each pool in parallel
     var poolHistories = await Promise.all(pools.map(function(p) {
