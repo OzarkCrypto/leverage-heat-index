@@ -106,7 +106,7 @@ var T = { en: {
   cost_title: "\uCC28\uC785 \uBE44\uC6A9", cap_title: "\uD65C\uC6A9\uB960 & \uC6A9\uB7C9", risk_title: "OI & \uB9AC\uC2A4\uD06C",
   pool_data: "\uD480 \uB370\uC774\uD130", pools: "\uD480", score: "\uC2A4\uCF54\uC5B4",
   protocol: "\uD504\uB85C\uD1A0\uCF5C", asset: "\uC790\uC0B0", chain: "\uCCB4\uC778",
-  borrow_pct: "\uB300\uCD9C%", util_pct: "\uD65C\uC6A9%", borrows: "\uB300\uCD9C\uAE08", supply: "\uACF5\uAE09\uAE08",
+  borrow_pct: "\uB300\uCD9C\uAE08\uB9AC", util_pct: "\uD65C\uC6A9\uB960", borrows: "\uB300\uCD9C\uC561", supply: "\uACF5\uAE09\uC561",
   coverage: "\uCEE4\uBC84\uB9AC\uC9C0", methodology: "\uBC29\uBC95\uB860",
   coverage_desc: "6\uAC1C EVM \uCCB4\uC778, 7\uAC1C+ \uD504\uB85C\uD1A0\uCF5C\uC758 \uC2A4\uD14C\uC774\uBE14 \uB300\uCD9C ~92% \uCEE4\uBC84. \uB9E4\uC77C 06:00 UTC \uC790\uB3D9 \uC5C5\uB370\uC774\uD2B8.",
   lbl_borrow_rate: "\uD3C9\uADE0 \uB300\uCD9C \uAE08\uB9AC (\uAC00\uC911)", lbl_btc_fund: "BTC \uD380\uB529 (\uC5F0\uD658\uC0B0)",
@@ -195,31 +195,47 @@ function getSignals(m, dm, t) {
 // ── Compute historical heat scores from Dune data ──
 function computeHeatScores(data) {
   if (!data || data.length < 30) return [];
+  // Compute all 7d rolling averages
+  var avg7All = [];
+  for (var i = 6; i < data.length; i++) {
+    var s = 0; for (var j = i - 6; j <= i; j++) s += data[j].borrow;
+    avg7All.push({ idx: i, val: s / 7 });
+  }
+  // Rolling 365d percentile function
+  function rollingPctile(pos, window) {
+    var start = Math.max(0, pos - window);
+    var vals = [];
+    for (var k = start; k <= pos; k++) vals.push(avg7All[k].val);
+    if (vals.length < 30) return 50;
+    vals.sort(function(a,b){return a-b;});
+    var target = avg7All[pos].val;
+    var below = 0;
+    for (var k = 0; k < vals.length; k++) { if (vals[k] < target) below++; else break; }
+    return below / vals.length * 100;
+  }
+  // Compute scores starting from day 29
   var scores = [];
   for (var i = 29; i < data.length; i++) {
-    // 30d rolling avg borrow volume
-    var sum30 = 0; for (var j = i - 29; j <= i; j++) sum30 += data[j].borrow;
-    var avg30 = sum30 / 30;
-    // 7d rolling avg
     var sum7 = 0, sumR7 = 0;
     for (var j = Math.max(0, i - 6); j <= i; j++) { sum7 += data[j].borrow; sumR7 += data[j].repay; }
     var avg7 = sum7 / Math.min(7, i + 1);
-    // 90d rolling avg for longer-term comparison
-    var start90 = Math.max(0, i - 89);
-    var sum90 = 0; for (var j = start90; j <= i; j++) sum90 += data[j].borrow;
-    var avg90 = sum90 / (i - start90 + 1);
-    // Volume momentum: 7d avg vs 30d avg
+    var sum30 = 0; for (var j = i - 29; j <= i; j++) sum30 += data[j].borrow;
+    var avg30 = sum30 / 30;
+    // Rolling 365d percentile
+    var avg7Idx = i - 6; // index into avg7All
+    if (avg7Idx < 0) avg7Idx = 0;
+    var pctile = rollingPctile(avg7Idx, 365);
+    var pctScore = scoreLinear(pctile, 15, 45, 75, 95);
+    // Momentum: 7d vs 30d
     var volMom = avg30 > 0 ? (avg7 / avg30 - 1) * 100 : 0;
-    var volMomScore = scoreLinear(volMom, -40, 0, 40, 100);
-    // Absolute volume vs 90d avg (is current activity high historically?)
-    var volLevel = avg90 > 0 ? avg7 / avg90 : 1;
-    var volLevelScore = scoreLinear(volLevel, 0.5, 0.9, 1.3, 2.0);
-    // Borrow/repay ratio
+    var momScore = scoreLinear(volMom, -30, 0, 30, 70);
+    // B/R ratio
     var brRatio = sumR7 > 0 ? sum7 / sumR7 : 1;
-    var brScore = scoreLinear(brRatio, 0.7, 0.95, 1.15, 1.5);
-    // Composite
-    var heat = volMomScore * 0.3 + volLevelScore * 0.4 + brScore * 0.3;
-    scores.push({ dt: data[i].dt, score: Math.max(-3, Math.min(3, heat)), borrow: data[i].borrow, repay: data[i].repay, brRatio: brRatio });
+    var brScore = scoreLinear(brRatio, 0.8, 0.97, 1.08, 1.3);
+    // Composite: percentile dominant
+    var heat = pctScore * 0.45 + momScore * 0.25 + brScore * 0.30;
+    heat = Math.max(-3, Math.min(3, heat));
+    scores.push({ dt: data[i].dt, score: heat, borrow: data[i].borrow, repay: data[i].repay, brRatio: brRatio, pctile: Math.round(pctile) });
   }
   return scores;
 }
@@ -280,6 +296,7 @@ function HeatTimeline({ heatData, period, setPeriod, t }) {
       <span style={{ color: sColor(hovInfo.score), fontWeight: 700 }}>{hovInfo.score > 0 ? "+" : ""}{hovInfo.score.toFixed(2)} {sLabel(hovInfo.score)}</span>
       <span>Vol: ${fmt(hovInfo.borrow)}</span>
       <span>B/R: {hovInfo.brRatio.toFixed(2)}x</span>
+      {hovInfo.pctile != null && <span>Pctile: {hovInfo.pctile}%</span>}
     </div>
     <svg width={W} height={H} style={{ display: "block", cursor: "crosshair" }} onMouseMove={handleMove} onMouseLeave={function(){setHov(-1);}}>
       {yLabels}{rects}
@@ -475,6 +492,38 @@ function MetricsExplorer({ duneData, historyData, period, setPeriod, t }) {
   </div>);
 }
 
+function RegimeMethodology({ t }) {
+  var _open = useState(false), open = _open[0], setOpen = _open[1];
+  return (<div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:6,marginBottom:12,overflow:"hidden"}}>
+    <div onClick={function(){setOpen(!open);}} style={{padding:"8px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:11,color:"#999",userSelect:"none"}}>
+      <span style={{fontWeight:600,letterSpacing:0.5}}>{t.regime_method_title}</span>
+      <span style={{fontSize:10,color:"#bbb"}}>{open?"\u25B2":"\u25BC"}</span>
+    </div>
+    {open && (<div style={{padding:"0 14px 12px"}}>
+      <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:8}}>{t.regime_method}</div>
+      <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:8}}>{t.regime_layers}</div>
+      <div style={{marginBottom:8}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {[
+            {label:"DELEVERAGED",range:"0\u201333",color:"#0ea371"},
+            {label:"COOLING",range:"33\u201345",color:"#4da87a"},
+            {label:"NEUTRAL",range:"45\u201355",color:"#888"},
+            {label:"WARMING",range:"55\u201367",color:"#c47a20"},
+            {label:"LEVERAGING UP",range:"67\u201383",color:"#d4522a"},
+            {label:"EXTREME",range:"83\u2013100",color:"#c41830"}
+          ].map(function(r){return <div key={r.label} style={{display:"flex",alignItems:"center",gap:4,padding:"2px 8px",borderRadius:3,background:r.color+"10",border:"1px solid "+r.color+"30",fontSize:10}}>
+            <span style={{width:8,height:8,borderRadius:1,background:r.color,display:"inline-block"}}></span>
+            <span style={{fontWeight:700,color:r.color}}>{r.label}</span>
+            <span style={{color:"#999"}}>{r.range}</span>
+          </div>;})}
+        </div>
+      </div>
+      <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:4}}>{t.regime_thresholds}</div>
+      <div style={{fontSize:10,color:"#aaa",lineHeight:1.6}}>{t.regime_data_sources}</div>
+    </div>)}
+  </div>);
+}
+
 function Row({ label, val, score, sub, exp }) {
   var _s = useState(false), sh = _s[0], setSh = _s[1];
   return (<div>
@@ -637,6 +686,9 @@ export default function App() {
           </div>
         </div>)}
 
+        {/* REGIME METHODOLOGY - collapsible, right below regime */}
+        <RegimeMethodology t={t} />
+
         {/* HEAT TIMELINE */}
         <HeatTimeline heatData={heatData} period={heatPeriod} setPeriod={setHeatPeriod} t={t} />
 
@@ -701,31 +753,6 @@ export default function App() {
               </tr>;})}</tbody>
             </table>
           </div>)}
-        </div>
-
-        {/* REGIME METHODOLOGY */}
-        <div style={{background:"#fff",border:"1px solid #e8e8ec",borderRadius:6,padding:"12px 16px",marginBottom:8}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#999",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>{t.regime_method_title}</div>
-          <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:8}}>{t.regime_method}</div>
-          <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:8}}>{t.regime_layers}</div>
-          <div style={{marginBottom:8}}>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {[
-                {label:"DELEVERAGED",range:"0\u201333",color:"#0ea371"},
-                {label:"COOLING",range:"33\u201345",color:"#4da87a"},
-                {label:"NEUTRAL",range:"45\u201355",color:"#888"},
-                {label:"WARMING",range:"55\u201367",color:"#c47a20"},
-                {label:"LEVERAGING UP",range:"67\u201383",color:"#d4522a"},
-                {label:"EXTREME",range:"83\u2013100",color:"#c41830"}
-              ].map(function(r){return <div key={r.label} style={{display:"flex",alignItems:"center",gap:4,padding:"2px 8px",borderRadius:3,background:r.color+"10",border:"1px solid "+r.color+"30",fontSize:10}}>
-                <span style={{width:8,height:8,borderRadius:1,background:r.color,display:"inline-block"}}></span>
-                <span style={{fontWeight:700,color:r.color}}>{r.label}</span>
-                <span style={{color:"#999"}}>{r.range}</span>
-              </div>;})}
-            </div>
-          </div>
-          <div style={{fontSize:11,color:"#555",lineHeight:1.8,marginBottom:4}}>{t.regime_thresholds}</div>
-          <div style={{fontSize:10,color:"#aaa",lineHeight:1.6}}>{t.regime_data_sources}</div>
         </div>
 
         <div style={{fontSize:10,color:"#bbb",lineHeight:1.8}}>
